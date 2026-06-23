@@ -1,26 +1,32 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fbfaf7; /* warm paper */
+  --foreground: #1a1a18; /* ink */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  /* NOW Insight palette — "editorial ink + teal".
+     Registered here so the tokens are reusable as Tailwind utilities
+     (text-ink, bg-paper, border-line, text-teal, bg-teal-soft, …). */
+  --color-paper: #fbfaf7; /* page background, warm off-white */
+  --color-ink: #1a1a18; /* primary text */
+  --color-muted: #5f5e5a; /* secondary text */
+  --color-line: #e4e1d8; /* hairline borders */
+  --color-stone-soft: #f1efe8; /* subtle neutral fills (gap card, footer) */
+  --color-teal: #0f6e56; /* primary accent */
+  --color-teal-bright: #1d9e75; /* brighter accent / hover */
+  --color-teal-soft: #e1f5ee; /* tinted accent fill (icon chips, pills) */
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, Arial, sans-serif;
 }
