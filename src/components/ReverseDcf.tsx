@@ -27,6 +27,9 @@ export function ReverseDcf() {
 
   // Fetch the live (delayed) price from our server route. The API key stays on the server.
   useEffect(() => {
+    // Render charts only after mount — Recharts needs real DOM dimensions; this avoids an SSR
+    // hydration mismatch. The deliberate set-state-in-effect is what defers the chart to the client.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     let cancelled = false;
     fetch("/api/quote")

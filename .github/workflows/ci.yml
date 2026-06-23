@@ -1,0 +1,33 @@
+name: CI
+
+# Runs on every push to main and on every pull request, so problems are caught
+# before they reach production (Vercel handles the actual deploy separately).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: Lint, typecheck, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      # No secrets needed: API routes are dynamic, so the build doesn't call Finnhub.
+      - name: Build
+        run: npm run build
