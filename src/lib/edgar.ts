@@ -178,6 +178,148 @@ export async function fetchNetCash(): Promise<NetCashResult | null> {
   return { netCash: (cashTotal - debtTotal) / 1e9, asOf: anchor };
 }
 
+/** us-gaap USD flow series (revenue, cash flow, capex). Empty on any error. Cached ~1 day. */
+async function fetchFlowSeries(tag: string): Promise<EdgarUnitDatum[]> {
+  return fetchConceptSeries("us-gaap", tag, "USD");
+}
+
+const DAY = 86_400_000;
+const dayLen = (d: EdgarUnitDatum): number | null => periodDays(d.start, d.end);
+
+/** Unique points by (start,end); EDGAR repeats the same period under multiple fiscal years. */
+function dedupePeriods(series: EdgarUnitDatum[]): EdgarUnitDatum[] {
+  const seen = new Set<string>();
+  const out: EdgarUnitDatum[] = [];
+  for (const d of series) {
+    const key = `${d.start ?? ""}_${d.end}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(d);
+    }
+  }
+  return out;
+}
+
+/** Annual (≈365-day) points, newest first. */
+function annualPoints(series: EdgarUnitDatum[]): EdgarUnitDatum[] {
+  return dedupePeriods(series)
+    .filter((d) => {
+      const n = dayLen(d);
+      return n != null && n >= 350 && n <= 380;
+    })
+    .sort((a, b) => Date.parse(b.end) - Date.parse(a.end));
+}
+
+/**
+ * Trailing-twelve-month total for a flow concept, robust to EDGAR's mixed reporting (CLAUDE.md:
+ * "cash-flow figures are especially prone to YTD accumulation"):
+ *  - if four discrete ~quarterly points span ~one year, sum them (income-statement style — revenue);
+ *  - otherwise reconstruct from cumulatives: latest full year + current-year YTD − prior-year YTD
+ *    (the standard fix for YTD-only cash flow / capex). Returns null if it can't be built.
+ */
+function ttmFlow(raw: EdgarUnitDatum[]): number | null {
+  const series = dedupePeriods(raw);
+
+  // 1) Four consecutive discrete quarters spanning ~one year (revenue files 3-month columns).
+  const quarters = series
+    .filter((d) => {
+      const n = dayLen(d);
+      return n != null && n >= 80 && n <= 100;
+    })
+    .sort((a, b) => Date.parse(b.end) - Date.parse(a.end));
+  if (quarters.length >= 4) {
+    const last4 = quarters.slice(0, 4);
+    const span = periodDays(last4[3].start, last4[0].end);
+    if (span != null && span >= 350 && span <= 380) {
+      return last4.reduce((s, q) => s + q.val, 0);
+    }
+  }
+
+  // 2) Cumulative reconstruction: full year + current-year YTD − prior-year YTD.
+  const annuals = annualPoints(series);
+  if (!annuals.length) return null;
+  const fy = annuals[0];
+
+  const interim = series
+    .filter((d) => Date.parse(d.end) > Date.parse(fy.end))
+    .sort((a, b) => Date.parse(b.end) - Date.parse(a.end))[0];
+  if (!interim) return fy.val; // latest full year is itself the freshest TTM
+
+  const iLen = dayLen(interim);
+  const targetPriorEnd = Date.parse(interim.end) - 365 * DAY;
+  const prior = series
+    .filter((d) => {
+      const n = dayLen(d);
+      return (
+        n != null &&
+        iLen != null &&
+        Math.abs(n - iLen) <= 12 &&
+        Math.abs(Date.parse(d.end) - targetPriorEnd) <= 25 * DAY
+      );
+    })
+    .sort(
+      (a, b) =>
+        Math.abs(Date.parse(a.end) - targetPriorEnd) - Math.abs(Date.parse(b.end) - targetPriorEnd)
+    )[0];
+  if (!prior) return fy.val;
+  return fy.val + interim.val - prior.val;
+}
+
+export interface FundamentalsResult {
+  /** Trailing-twelve-month revenue, $B. */
+  revenueTtm: number;
+  /** Reported YoY revenue growth (decimal), latest full year vs. the prior one. Null if unavailable. */
+  revenueGrowthYoY: number | null;
+  /** Free-cash-flow margin (decimal) = (OCF − capex) over TTM ÷ TTM revenue. Null if unavailable. */
+  fcfMargin: number | null;
+  /** Most recent revenue period end (ISO YYYY-MM-DD) — the freshness anchor. */
+  asOf: string;
+}
+
+/**
+ * Compute NOW's core fundamentals live from EDGAR: TTM revenue, reported YoY growth, and FCF margin.
+ *
+ * Returns null only if revenue (the anchor) can't be built; margin and growth degrade to null
+ * independently so a missing capex tag or single annual point doesn't sink the whole result.
+ */
+export async function fetchFundamentals(): Promise<FundamentalsResult | null> {
+  const [revRaw, ocfRaw, capexRaw] = await Promise.all([
+    fetchFlowSeries(EDGAR_TAGS.revenue),
+    fetchFlowSeries(EDGAR_TAGS.operatingCashFlow),
+    fetchFlowSeries(EDGAR_TAGS.capex),
+  ]);
+
+  const revenueTtmUsd = ttmFlow(revRaw);
+  if (revenueTtmUsd == null) return null;
+
+  // Reported YoY growth from the two latest full fiscal years (e.g. FY25 vs FY24).
+  const revAnnuals = annualPoints(revRaw);
+  const revenueGrowthYoY =
+    revAnnuals.length >= 2 && revAnnuals[1].val > 0
+      ? revAnnuals[0].val / revAnnuals[1].val - 1
+      : null;
+
+  const ocfTtm = ttmFlow(ocfRaw);
+  const capexTtm = ttmFlow(capexRaw);
+  const fcfMargin =
+    ocfTtm != null && capexTtm != null && revenueTtmUsd > 0
+      ? (ocfTtm - capexTtm) / revenueTtmUsd
+      : null;
+
+  const asOf =
+    dedupePeriods(revRaw)
+      .map((d) => d.end)
+      .sort()
+      .reverse()[0] ?? "latest filing";
+
+  return {
+    revenueTtm: revenueTtmUsd / 1e9,
+    revenueGrowthYoY,
+    fcfMargin,
+    asOf,
+  };
+}
+
 export interface SharesResult {
   /** Shares outstanding in billions (latest reported — post-split). */
   shares: number;

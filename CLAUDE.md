@@ -33,7 +33,39 @@ design decision — it read as clutter. The code/data rule still stands; only th
 - Version control: Git + GitHub. Hosting: Vercel (deploys from GitHub).
 - API keys (price data) must live in server-side code / env vars, NEVER in client-side code.
 
-## UI / design decisions (Phase 1 build)
+## Redesign (2026-06) — single-page "NOW you know" (CURRENT)
+
+The site was rebuilt from a Claude Design mock into ONE landing page (`src/app/page.tsx`) that
+consolidates the three former routes into anchored sections: hero + live quote card → "What's priced
+in" → interactive Modeler → price History → stock-movement Basics. Key changes that SUPERSEDE the
+Phase 1 notes below:
+
+- **New design system (plain CSS, not Tailwind).** Tokens/components live in `src/app/globals.css`
+  using CSS custom properties (`--bg`, `--ink`, `--accent`, …) under `:root[data-theme="brand"]`
+  (light, default) with a dormant `terminal` (dark) theme. Accent is **green "growth"** (`#1f9d57`),
+  NOT the old editorial teal. Fonts: **Hanken Grotesk** (body), **Schibsted Grotesk** (display),
+  **IBM Plex Mono** (numbers), via `next/font/google` in `layout.tsx`. Tailwind is no longer used by
+  the page. The old teal/Tailwind `@theme` tokens and `text-ink`/`bg-paper` utilities are gone.
+- **There IS a sticky site header + anchor nav now** (reverses the old "no global header" rule) and a
+  live ticker pill. Section components live in `src/components/now/*`.
+- **One live data route — `/api/overview`** feeds every number via a shared `OverviewProvider`
+  (single fetch). It fuses Finnhub quote + basic-financials metric (52-wk range, P/E) with EDGAR
+  fundamentals. `lib/edgar.ts` `fetchFundamentals()` computes TTM revenue, reported YoY growth, and
+  FCF margin — using a **cumulative-reconstruction TTM** (full year + current YTD − prior-year YTD)
+  because NOW reports operating cash flow as YTD only (Q1 is the sole discrete quarter). Do NOT revert
+  to a naive "sum latest 4 quarters" for cash flow — it silently mixes four years' Q1s (gave a wrong
+  ~42% FCF margin; correct is ~33%).
+- **The Modeler is a deliberately simple 5-year multiple model** (grow revenue → apply FCF margin →
+  ×P/FCF multiple → ÷ shares), seeded from live reported growth/margin. It is NOT the reverse-DCF.
+  The reverse-DCF engine (`lib/dcf.ts`) and the peer/daily-move libs remain in the tree (tested) but
+  are no longer wired into any page.
+- **History line** = a vetted, labeled "approximate split-adjusted annual closes" snapshot
+  (`lib/history.ts`) with the live current price appended — the only intentionally-static series.
+
+The Phase-1 notes below are retained for historical context; where they conflict with the above, the
+above wins.
+
+## UI / design decisions (Phase 1 build — superseded by the 2026-06 redesign above)
 
 Decisions made while building the homepage + reverse-DCF page. Keep these consistent across new pages.
 

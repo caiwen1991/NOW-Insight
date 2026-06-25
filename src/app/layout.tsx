@@ -1,22 +1,29 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Hanken_Grotesk, Schibsted_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import { DisclaimerBanner, DisclaimerFooter } from "@/components/Disclaimers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// The design's type system: Hanken Grotesk (body), Schibsted Grotesk (display), IBM Plex Mono
+// (numbers). Loaded here and exposed as CSS variables consumed by globals.css.
+const hanken = Hanken_Grotesk({
+  variable: "--font-hanken",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const schibsted = Schibsted_Grotesk({
+  variable: "--font-schibsted",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+});
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
-  title: "NOW Insight — understanding ServiceNow (NOW) stock",
+  title: "Now You Know — understanding ServiceNow (NOW) stock",
   description:
-    "An independent, educational tool for understanding ServiceNow (NOW) stock: what today's price implies about the market's expectations. Not investment advice.",
+    "A plain-English, independent, educational guide to ServiceNow (NOW) stock: why it moves, what today's price already assumes, and a model to pressure-test it. Not investment advice.",
 };
 
 export default function RootLayout({
@@ -27,14 +34,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-theme="brand"
+      data-accent="growth"
+      className={`${hanken.variable} ${schibsted.variable} ${plexMono.variable}`}
     >
-      <body className="min-h-full flex flex-col">
-        {/* Required on every page (CLAUDE.md hard rule). */}
-        <DisclaimerBanner />
-        <main className="flex-1 w-full">{children}</main>
-        <DisclaimerFooter />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
