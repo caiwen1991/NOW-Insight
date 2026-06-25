@@ -166,3 +166,44 @@ export function solveImpliedGrowth(
   }
   return (low + high) / 2;
 }
+
+/**
+ * "Solve for the implied discount rate": find the WACC that makes implied fair value equal the
+ * current market price, holding the other four assumptions fixed. Fair value is monotonically
+ * DECREASING in WACC (a higher discount rate lowers every present value), so the search direction is
+ * the mirror image of solveImpliedGrowth. The lower bound stays just above the perpetuity growth so
+ * the terminal value denominator (WACC − perpetuity) is positive. Returns null if the price can't be
+ * bracketed within the search range.
+ */
+export function solveImpliedWacc(
+  targetPrice: number,
+  inputs: DcfInputs,
+  company: DcfCompany,
+  opts: { low?: number; high?: number; tolerance?: number; maxIterations?: number } = {}
+): number | null {
+  const low0 = opts.low ?? inputs.perpetuityGrowth + 0.001; // must exceed perpetuity growth
+  const high0 = opts.high ?? 0.5; // 50% — generously wide
+  const tolerance = opts.tolerance ?? 0.01;
+  const maxIterations = opts.maxIterations ?? 100;
+
+  const fairAt = (w: number) => runDcf({ ...inputs, wacc: w }, company).fairValuePerShare;
+
+  let low = low0; // low WACC → high fair value
+  let high = high0; // high WACC → low fair value
+  const fLow = fairAt(low) - targetPrice;
+  const fHigh = fairAt(high) - targetPrice;
+
+  // Price must sit between the values at the bounds: high at low WACC, low at high WACC.
+  if (!Number.isFinite(fLow) || !Number.isFinite(fHigh) || fLow < 0 || fHigh > 0) {
+    return null;
+  }
+
+  for (let i = 0; i < maxIterations; i++) {
+    const mid = (low + high) / 2;
+    const fMid = fairAt(mid) - targetPrice;
+    if (Math.abs(fMid) < tolerance) return mid;
+    if (fMid > 0) low = mid; // fair still above price → raise the discount rate
+    else high = mid;
+  }
+  return (low + high) / 2;
+}

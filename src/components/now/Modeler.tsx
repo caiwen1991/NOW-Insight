@@ -1,104 +1,121 @@
 "use client";
 
 /**
- * Interactive 5-year modeler. Deliberately simple (the design's stated method, NOT a DCF):
- * grow live TTM revenue at the chosen rate, apply a cash-flow margin, put a P/FCF multiple on that
- * cash flow, divide by live shares → a price. Bull/base/bear flank the base case. Seeded from the
- * live reported growth/margin (EDGAR) and the live revenue base + share count.
+ * Reverse-DCF modeler. Forward: project 10 years of revenue → free cash flow, discount at WACC, add
+ * a Gordon-growth terminal value and net cash, divide by shares → implied fair value. Reverse: hold
+ * today's live price fixed and solve for the year-1 growth the market is implying. All company facts
+ * (revenue, current FCF margin, net cash, shares) come live from /api/overview (EDGAR + Finnhub).
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useOverview } from "./OverviewProvider";
-import { usd0, signedPct } from "./format";
-
-const HORIZON = 5;
-
-interface Inputs {
-  g: number; // revenue growth %/yr
-  m: number; // FCF margin %
-  k: number; // P/FCF multiple
-}
-
-const DEFAULTS: Inputs = { g: 18, m: 33, k: 24 };
+import { runDcf, type DcfInputs, type DcfCompany } from "@/lib/dcf";
+import { NOW_COMPANY, DEFAULT_INPUTS, SLIDERS } from "@/lib/company";
+import { usd0, usdB, pct, signedPct } from "./format";
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-/** Modeled price `t` years out for a given growth/margin/multiple, in $/share. */
-function priceAt(t: number, inp: Inputs, startRevB: number, sharesB: number): number {
-  const rev = startRevB * Math.pow(1 + inp.g / 100, t);
-  const fcf = rev * (inp.m / 100);
-  const equity = fcf * inp.k; // $B
-  return (equity / sharesB) || 0; // $/share
-}
+/** Display labels for the three scenario presets (internal keys stay conservative/consensus/ambitious). */
+const PRESET_LABELS: Record<string, string> = {
+  conservative: "Bear",
+  consensus: "Management",
+  ambitious: "Bull",
+};
+
+/**
+ * Plain-English narrative shown under the buttons when a scenario is selected. The Management case is
+ * anchored to ServiceNow's FY2026 guidance from its Q1 2026 investor presentation (Apr 22, 2026):
+ * subscription revenue ~+22%, non-GAAP operating margin 31.5%, non-GAAP FCF margin 35%.
+ */
+const PRESET_NARRATIVES: Record<string, string> = {
+  conservative:
+    "Bear case: growth decelerates well below guidance toward the low-teens and free-cash-flow margins slip to ~30%, as AI pressures seat-based pricing and the platform matures faster than management expects.",
+  consensus:
+    "Anchored to ServiceNow's FY2026 guidance (Q1'26 deck, Apr 2026): ~22% subscription-revenue growth, a 31.5% operating margin and a 35% non-GAAP FCF margin (Q1'26 ran 32% / 44%). Here growth starts near that pace and fades to a 3% long-run rate while margins hold in the low-30s.",
+  ambitious:
+    "Bull case: AI (Now Assist) keeps growth in the high-20s and FCF margins expand past management's ~35% target toward ~38%, with demand durable enough to support a higher long-run growth rate.",
+};
 
 export function Modeler() {
   const { data } = useOverview();
-  const [inp, setInp] = useState<Inputs>(DEFAULTS);
-  const [preset, setPreset] = useState<string | null>(null);
+  const [inputs, setInputs] = useState<DcfInputs>(DEFAULT_INPUTS);
+  const [preset, setPreset] = useState<string | null>("consensus");
   const seeded = useRef(false);
 
-  const startRev = data?.revenueTtm ?? 14.0;
-  const shares = data?.shares ?? 1.03;
   const price = data?.price ?? null;
   const reportedG = data?.revenueGrowthYoY ?? null;
   const reportedM = data?.fcfMargin ?? null;
 
-  // Seed base growth/margin from the live reported figures once, if the user hasn't touched anything.
+  // Company facts for the engine — live, with vetted fallbacks.
+  const company: DcfCompany = useMemo(
+    () => ({
+      ttmRevenue: data?.revenueTtm ?? NOW_COMPANY.ttmRevenue,
+      currentFcfMargin: data?.fcfMargin ?? NOW_COMPANY.currentFcfMargin,
+      netCash: data?.netCash ?? NOW_COMPANY.netCash,
+      sharesOutstanding: data?.shares ?? NOW_COMPANY.sharesOutstanding,
+    }),
+    [data]
+  );
+
+  const set = (key: keyof DcfInputs, value: number) => {
+    setPreset(null);
+    setInputs((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const presets = useMemo<Record<string, DcfInputs>>(() => {
+    const g = reportedG != null ? clamp(reportedG, -0.1, 0.6) : DEFAULT_INPUTS.year1Growth;
+    const m = reportedM != null ? clamp(reportedM, 0.1, 0.5) : DEFAULT_INPUTS.terminalFcfMargin;
+    return {
+      conservative: { year1Growth: clamp(g - 0.09, -0.1, 0.6), terminalGrowth: 0.025, terminalFcfMargin: clamp(m - 0.03, 0.1, 0.5), wacc: 0.09, perpetuityGrowth: 0.025 },
+      consensus: { year1Growth: g, terminalGrowth: 0.03, terminalFcfMargin: 0.33, wacc: 0.09, perpetuityGrowth: 0.025 },
+      ambitious: { year1Growth: clamp(g + 0.06, -0.1, 0.6), terminalGrowth: 0.04, terminalFcfMargin: clamp(m + 0.05, 0.1, 0.5), wacc: 0.09, perpetuityGrowth: 0.025 },
+    };
+  }, [reportedG, reportedM]);
+
+  // On first data load, apply the live-seeded Consensus scenario (the default selection).
   useEffect(() => {
     if (seeded.current || !data) return;
     seeded.current = true;
-    setInp((prev) => ({
-      ...prev,
-      g: reportedG != null ? clamp(Math.round(reportedG * 100), 5, 30) : prev.g,
-      m: reportedM != null ? clamp(Math.round(reportedM * 100), 20, 45) : prev.m,
-    }));
+    setInputs(presets.consensus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
-  const set = (key: keyof Inputs, value: number) => {
-    setPreset(null);
-    setInp((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const presets = useMemo(() => {
-    const rg = reportedG != null ? clamp(Math.round(reportedG * 100), 5, 30) : 18;
-    const rm = reportedM != null ? clamp(Math.round(reportedM * 100), 20, 45) : 33;
-    return {
-      conservative: { g: clamp(rg - 8, 5, 30), m: clamp(rm - 5, 20, 45), k: 16 },
-      consensus: { g: rg, m: rm, k: 24 },
-      ambitious: { g: clamp(rg + 7, 5, 30), m: clamp(rm + 5, 20, 45), k: 32 },
-    } as Record<string, Inputs>;
-  }, [reportedG, reportedM]);
-
   const applyPreset = (name: string) => {
-    setInp(presets[name]);
+    setInputs(presets[name]);
     setPreset(name);
   };
 
-  const horizonYear = new Date().getFullYear() + HORIZON;
+  const result = useMemo(() => runDcf(inputs, company), [inputs, company]);
+  const fair = result.fairValuePerShare;
+  const valid = Number.isFinite(fair);
+  const gap = price != null && valid ? fair / price - 1 : null;
 
-  const base = priceAt(HORIZON, inp, startRev, shares);
-  const ret = (p: number) => (price ? p / price - 1 : null);
+  const hintFor = (key: keyof DcfInputs, fallback: string) => {
+    if (key === "year1Growth" && reportedG != null)
+      return `Reported: ~${pct(reportedG, 0)} YoY (EDGAR). Fades to your terminal rate by year 10.`;
+    if (key === "terminalFcfMargin" && reportedM != null)
+      return `Today ~${pct(reportedM, 0)} (EDGAR); ramps to this by year 10.`;
+    return fallback;
+  };
 
-  // Projection bars: live current price (sage) then the modeled price path.
-  const pathPrices = [price ?? base, ...Array.from({ length: HORIZON }, (_, i) => priceAt(i + 1, inp, startRev, shares))];
-  const maxBar = Math.max(...pathPrices);
-  const startYear = horizonYear - HORIZON;
+  const assumeText = `${pct(inputs.year1Growth, 0)}→${pct(inputs.terminalGrowth, 0)} growth · ${pct(
+    inputs.terminalFcfMargin,
+    0
+  )} margin · ${pct(inputs.wacc, 0)} WACC`;
 
-  // Headline stats vs. today's live price.
-  const upside = ret(base); // total return over the horizon (decimal), or null if no live price
-  const cagr = price ? Math.pow(base / price, 1 / HORIZON) - 1 : null; // implied annualized return
-  const assume = (i: Inputs) => `${i.g}% growth · ${i.m}% FCF · ${i.k}×`;
+  const fcfYears = result.perSharesByYear;
+  const maxFcf = Math.max(...fcfYears.map((y) => y.fcf), 1);
+  const baseYear = new Date().getFullYear();
 
   return (
     <section className="block" id="model">
       <div className="wrap">
         <div className="section-head">
           <div className="eyebrow">Pull the levers</div>
-          <h2>Model the stock&rsquo;s potential</h2>
+          <h2>What today&rsquo;s price is implying</h2>
           <p className="lede">
-            Pick your assumptions for the next five years. We grow revenue, apply a cash-flow margin,
-            put a multiple on that cash flow, and divide by shares to get a price. Watch the modeled
-            price and its path update as you move the levers.
+            Set your long-run assumptions. We project a decade of revenue and free cash flow, discount
+            it back to today, add a terminal value and net cash, then divide by shares — a simplified
+            discounted-cash-flow valuation. Or flip it: solve for the growth today&rsquo;s price implies.
           </p>
         </div>
 
@@ -108,7 +125,7 @@ export function Modeler() {
             <div className="controls">
               <h3>Your assumptions</h3>
               <div className="sub">
-                {HORIZON}-year horizon · starting from {`$${startRev.toFixed(1)}B`} revenue
+                10-year horizon · starting from {`$${company.ttmRevenue.toFixed(1)}B`} revenue
               </div>
 
               <div className="preset-row">
@@ -118,110 +135,110 @@ export function Modeler() {
                     className={`preset${preset === name ? " on" : ""}`}
                     onClick={() => applyPreset(name)}
                   >
-                    {name[0].toUpperCase() + name.slice(1)}
+                    {PRESET_LABELS[name]}
                   </button>
                 ))}
               </div>
 
-              <div className="control">
-                <div className="lab">
-                  <span className="name">Revenue growth /yr</span>
-                  <span className="val">{inp.g}%</span>
-                </div>
-                <input type="range" min={5} max={30} step={1} value={inp.g} onChange={(e) => set("g", +e.target.value)} />
-                <div className="hint">
-                  {reportedG != null
-                    ? `Reported: ${signedPct(reportedG, 0)} over the last year (EDGAR).`
-                    : "Reported growth from SEC EDGAR filings."}
-                </div>
-              </div>
+              {preset && PRESET_NARRATIVES[preset] && (
+                <p className="preset-note">{PRESET_NARRATIVES[preset]}</p>
+              )}
 
-              <div className="control">
-                <div className="lab">
-                  <span className="name">Free-cash-flow margin</span>
-                  <span className="val">{inp.m}%</span>
+              {SLIDERS.map((s) => (
+                <div className="control" key={s.key}>
+                  <div className="lab">
+                    <span className="name">{s.label}</span>
+                    <span className="val">{pct(inputs[s.key], 1)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={s.min}
+                    max={s.max}
+                    step={s.step}
+                    value={inputs[s.key]}
+                    onChange={(e) => set(s.key, +e.target.value)}
+                  />
+                  <div className="hint">{hintFor(s.key, s.benchmark)}</div>
                 </div>
-                <input type="range" min={20} max={45} step={1} value={inp.m} onChange={(e) => set("m", +e.target.value)} />
-                <div className="hint">
-                  {reportedM != null
-                    ? `Reported: most recent FCF margin ~${Math.round(reportedM * 100)}% (EDGAR).`
-                    : "Reported FCF margin from SEC EDGAR filings."}
-                </div>
-              </div>
-
-              <div className="control">
-                <div className="lab">
-                  <span className="name">Valuation multiple (P/FCF)</span>
-                  <span className="val">{inp.k}×</span>
-                </div>
-                <input type="range" min={10} max={45} step={1} value={inp.k} onChange={(e) => set("k", +e.target.value)} />
-                <div className="hint">What the market pays per $1 of future cash flow.</div>
-              </div>
+              ))}
             </div>
 
             {/* Results */}
             <div className="results">
               <div className="model-summary">
                 <div className="model-headline">
-                  <div className="k">Modeled price in {horizonYear}</div>
+                  <div className="k">Implied fair value</div>
                   <div className="bigprice">
                     <span className="cur">$</span>
-                    {Math.round(base).toLocaleString("en-US")}
+                    {valid ? Math.round(fair).toLocaleString("en-US") : "—"}
+                  </div>
+                  <div className="assume" style={{ marginTop: 8 }}>
+                    per share · today {price != null ? usd0(price) : "—"}
                   </div>
                 </div>
                 <div className="model-stats">
                   <div className="stat-row">
                     <div className="stat-card">
-                      <div className="sk">Upside vs today</div>
+                      <div className="sk">Implied value vs today</div>
                       <div
                         className="sv"
-                        style={{ color: upside != null && upside < 0 ? "var(--neg)" : "var(--pos)" }}
+                        style={{ color: gap != null && gap < 0 ? "var(--neg)" : "var(--pos)" }}
                       >
-                        {upside != null ? signedPct(upside, 0) : "—"}
+                        {gap != null ? signedPct(gap, 0) : "—"}
                       </div>
                     </div>
                     <div className="stat-card">
-                      <div className="sk">Implied return</div>
-                      <div
-                        className="sv"
-                        style={{ color: cagr != null && cagr < 0 ? "var(--neg)" : "var(--pos)" }}
-                      >
-                        {cagr != null ? `${signedPct(cagr, 0)}/yr` : "—"}
+                      <div className="sk">Implied enterprise value</div>
+                      <div className="sv" style={{ color: "var(--ink)" }}>
+                        {valid ? usdB(result.enterpriseValue, 0) : "—"}
                       </div>
                     </div>
                   </div>
                   <div className="stat-card">
                     <div className="sk">Your assumptions</div>
-                    <div className="sv-assume">{assume(inp)}</div>
+                    <div className="sv-assume">{assumeText}</div>
                   </div>
                 </div>
               </div>
 
               <div className="proj-chart">
                 <div className="cap">
-                  <span>Modeled price path</span>
-                  <span>Now → {horizonYear}</span>
+                  <span>Projected free cash flow ($B)</span>
+                  <span>Year 1 → 10</span>
                 </div>
                 <div className="barscol">
-                  {pathPrices.map((v, i) => (
-                    <div className="col" key={i}>
-                      <div className="bv">{usd0(v)}</div>
-                      <div
-                        className={`bx${i === 0 ? " now" : ""}`}
-                        style={{ height: `${maxBar > 0 ? (v / maxBar) * 100 : 0}%` }}
-                      />
-                      <div className="yr">{i === 0 ? "Now" : `'${String(startYear + i).slice(2)}`}</div>
+                  {fcfYears.map((y, i) => (
+                    <div className="col" key={y.year}>
+                      <div className="bv">{y.fcf.toFixed(0)}</div>
+                      <div className="bx" style={{ height: `${(y.fcf / maxFcf) * 100}%` }} />
+                      <div className="yr">{`'${String(baseYear + i + 1).slice(2)}`}</div>
                     </div>
                   ))}
                 </div>
               </div>
+
+              {valid ? (
+                <p className="assumption-note" style={{ maxWidth: "none" }}>
+                  {usdB(result.pvExplicit, 0)} PV of 10-yr cash flows + {usdB(result.pvTerminal, 0)} PV
+                  of terminal value = {usdB(result.enterpriseValue, 0)} enterprise value, +{" "}
+                  {usdB(company.netCash, 1)} net cash = {usdB(result.equityValue, 0)} equity ÷{" "}
+                  {company.sharesOutstanding.toFixed(2)}B shares = ${fair.toFixed(0)}/share.
+                </p>
+              ) : (
+                <p className="assumption-note" style={{ maxWidth: "none" }}>
+                  These assumptions don&rsquo;t produce a finite value — the discount rate (WACC) must
+                  exceed the perpetuity growth rate.
+                </p>
+              )}
             </div>
           </div>
         </div>
         <p className="assumption-note" style={{ maxWidth: "none" }}>
           Today: <strong>{price != null ? usd0(price) : "—"}</strong> ·{" "}
-          <span>~{shares.toFixed(2)}B</span> shares. The math is deliberately simple so the{" "}
-          <em>levers</em> are clear — it is not a discounted-cash-flow valuation.
+          <span>~{company.sharesOutstanding.toFixed(2)}B</span> shares. A simplified 10-year DCF —
+          growth fades to your terminal rate, FCF margin ramps to target, cash flows are discounted at
+          your WACC, and a Gordon-growth perpetuity captures value beyond year 10. The discount rate
+          is the annual return an investor requires. Educational — not a forecast or a recommendation.
         </p>
       </div>
     </section>

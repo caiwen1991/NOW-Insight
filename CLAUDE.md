@@ -55,10 +55,13 @@ Phase 1 notes below:
   because NOW reports operating cash flow as YTD only (Q1 is the sole discrete quarter). Do NOT revert
   to a naive "sum latest 4 quarters" for cash flow — it silently mixes four years' Q1s (gave a wrong
   ~42% FCF margin; correct is ~33%).
-- **The Modeler is a deliberately simple 5-year multiple model** (grow revenue → apply FCF margin →
-  ×P/FCF multiple → ÷ shares), seeded from live reported growth/margin. It is NOT the reverse-DCF.
-  The reverse-DCF engine (`lib/dcf.ts`) and the peer/daily-move libs remain in the tree (tested) but
-  are no longer wired into any page.
+- **The Modeler ("Model it") is the reverse DCF** (`lib/dcf.ts` `runDcf` + `solveImpliedGrowth`),
+  seeded live from `/api/overview` (revenue, current FCF margin, net cash, shares). Five sliders
+  (year-1 growth, terminal growth, terminal FCF margin, WACC, perpetuity), three scenario presets
+  (conservative/consensus/ambitious), and a big "solve for the growth today's price implies" button.
+  Output is implied fair value/share, the gap vs the live price, the live implied year-1 growth, a
+  10-year projected-FCF chart, and a value-breakdown line. (It replaced an earlier simple 5-year
+  multiple model.) The peer/daily-move libs remain in the tree (tested) but are not wired to a page.
 - **History line** = a vetted, labeled "approximate split-adjusted annual closes" snapshot
   (`lib/history.ts`) with the live current price appended — the only intentionally-static series.
 
