@@ -259,6 +259,7 @@ input[type=range]::-moz-range-thumb { width: 17px; height: 17px; border-radius: 
 /* base-case summary — modeled price + stat cards */
 .model-summary { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: start; margin-bottom: 6px; }
 .model-headline .k { font-size: 13px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.headline-card { border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; align-self: start; transition: background .25s ease, border-color .25s ease; }
 .model-stats { display: flex; flex-direction: column; gap: 12px; }
 .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .stat-card { border: 1px solid var(--line); border-radius: 14px; padding: 15px 18px; background: var(--surface); }

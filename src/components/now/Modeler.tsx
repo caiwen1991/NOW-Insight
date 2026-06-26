@@ -89,6 +89,20 @@ export function Modeler() {
   const valid = Number.isFinite(fair);
   const gap = price != null && valid ? fair / price - 1 : null;
 
+  // Tint the fair-value card: light green when implied value > price, light red when below.
+  const headlineBg =
+    gap == null
+      ? "var(--surface)"
+      : gap >= 0
+        ? "color-mix(in srgb, var(--pos) 9%, var(--surface))"
+        : "color-mix(in srgb, var(--neg) 9%, var(--surface))";
+  const headlineBorder =
+    gap == null
+      ? "var(--line)"
+      : gap >= 0
+        ? "color-mix(in srgb, var(--pos) 22%, var(--line))"
+        : "color-mix(in srgb, var(--neg) 22%, var(--line))";
+
   const hintFor = (key: keyof DcfInputs, fallback: string) => {
     if (key === "year1Growth" && reportedG != null)
       return `Reported: ~${pct(reportedG, 0)} YoY (EDGAR). Fades to your terminal rate by year 10.`;
@@ -111,11 +125,10 @@ export function Modeler() {
       <div className="wrap">
         <div className="section-head">
           <div className="eyebrow">Pull the levers</div>
-          <h2>What today&rsquo;s price is implying</h2>
+          <h2>Model the Fair Price</h2>
           <p className="lede">
-            Set your long-run assumptions. We project a decade of revenue and free cash flow, discount
-            it back to today, add a terminal value and net cash, then divide by shares — a simplified
-            discounted-cash-flow valuation. Or flip it: solve for the growth today&rsquo;s price implies.
+            Set your assumptions, and see the implied value under a simplified Discounted Cash Flow
+            (DCF) valuation.
           </p>
         </div>
 
@@ -166,7 +179,10 @@ export function Modeler() {
             {/* Results */}
             <div className="results">
               <div className="model-summary">
-                <div className="model-headline">
+                <div
+                  className="model-headline headline-card"
+                  style={{ background: headlineBg, borderColor: headlineBorder }}
+                >
                   <div className="k">Implied fair value</div>
                   <div className="bigprice">
                     <span className="cur">$</span>

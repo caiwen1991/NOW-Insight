@@ -21,9 +21,7 @@ export function PricedIn() {
           <div className="eyebrow">Expectations machine</div>
           <h2>What today&rsquo;s price already assumes</h2>
           <p className="lede">
-            A stock price isn&rsquo;t just &ldquo;the company now&rdquo; — it&rsquo;s the company{" "}
-            <em>now plus years of expected growth</em>, pulled into the present. Here&rsquo;s a simple
-            way to see the split.
+            A stock price is the company now plus years of expected growth, pulled into the present.
           </p>
         </div>
 
@@ -86,22 +84,9 @@ export function PricedIn() {
               </strong>
               , on roughly{" "}
               <strong style={{ color: "var(--ink)" }}>{data ? pct(data.fcfMargin) : "—"}</strong> FCF
-              margins. For the stock to climb from here, the market needs:
+              margins.
             </p>
-            <ul className="implies">
-              <li>
-                Revenue to keep compounding at a <strong>double-digit</strong> clip — for years, not a
-                quarter.
-              </li>
-              <li>
-                Free-cash-flow margins to hold or expand from{" "}
-                <strong>{data ? `~${pct(data.fcfMargin)}` : "—"}</strong>.
-              </li>
-              <li>
-                The multiple to stay put — a growth scare can <strong>compress it</strong> fast.
-              </li>
-            </ul>
-            <p style={{ color: "var(--ink-soft)", marginTop: 16, fontSize: 14.5 }}>
+            <p style={{ color: "var(--ink-soft)", marginTop: 16 }}>
               Bottom line: about <strong>{data ? `~${pct(data.growthShare)}` : "—"}</strong> of
               today&rsquo;s price is growth that hasn&rsquo;t happened yet. Pressure-test it in the
               model below.

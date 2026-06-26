@@ -28,7 +28,7 @@ export function SiteFooter() {
           here is investment, financial, tax, or legal advice, or a recommendation, offer, or
           solicitation to buy or sell any security. Live prices are sourced from Finnhub and may be
           delayed, incomplete, or inaccurate; fundamentals come from SEC EDGAR filings; multi-year
-          history reflects approximate split-adjusted annual closes. The interactive model produces
+          history reflects approximate split-adjusted monthly closes. The interactive model produces
           hypothetical outputs based on assumptions you choose and does not predict future
           performance. Past performance does not guarantee future results. Investing involves risk,
           including possible loss of principal. Consult a qualified financial advisor before making

@@ -140,7 +140,7 @@ export function Hero() {
         : "unavailable"
       : data.priceIsPlaceholder
         ? "placeholder price"
-        : `delayed · ${new Date(data.asOf).toLocaleString("en-US", {
+        : `Updated as of ${new Date(data.asOf).toLocaleString("en-US", {
             month: "short",
             day: "numeric",
             hour: "numeric",
@@ -161,9 +161,7 @@ export function Hero() {
             You own <em>NOW</em>. Now get to know it.
           </h1>
           <p className="lede">
-            A plain-English guide to why ServiceNow&rsquo;s stock moves, what today&rsquo;s price
-            already assumes, and how to model where it could go — built for anyone trying to make
-            sense of NOW.
+            A simple tool built for anyone trying to make sense of NOW.
           </p>
           <div className="hero-cta">
             <a href="#model" className="btn btn-primary">
