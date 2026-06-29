@@ -36,7 +36,6 @@ export function Hero() {
     <section className="hero">
       <div className="wrap hero-inner">
         <div>
-          <div className="eyebrow">Make sense of your shares</div>
           <h1>
             You own <em>NOW</em>. Now get to know it.
           </h1>
@@ -64,7 +63,7 @@ export function Hero() {
               {asOf}
             </div>
           </div>
-          <div className="price mono">{price != null ? usd2(price) : "—"}</div>
+          <div className="price mono">{price != null ? usd2(price) : "–"}</div>
           <div className={`delta chg ${dir}`}>
             {change != null && changePct != null
               ? `${arrow(changePct)} ${change >= 0 ? "+" : "−"}$${Math.abs(change).toFixed(2)} (${signedPct(changePct).replace("+", "")}) today`
@@ -74,14 +73,14 @@ export function Hero() {
           <div className="quote-grid">
             <div>
               <div className="k">Market cap</div>
-              <div className="v mono">{data ? usdB(data.marketCap) : "—"}</div>
+              <div className="v mono">{data ? usdB(data.marketCap) : "–"}</div>
             </div>
             <div>
               <div className="k">Today&rsquo;s range</div>
               <div className="v mono">
                 {data?.dayLow != null && data?.dayHigh != null
                   ? `${usd2(data.dayLow)}–${usd2(data.dayHigh)}`
-                  : "—"}
+                  : "–"}
               </div>
             </div>
             <div>
@@ -89,7 +88,7 @@ export function Hero() {
               <div className="v mono">
                 {data?.week52Low != null && data?.week52High != null
                   ? `${usd2(data.week52Low)}–${usd2(data.week52High)}`
-                  : "—"}
+                  : "–"}
               </div>
             </div>
           </div>

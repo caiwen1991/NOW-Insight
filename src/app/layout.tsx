@@ -21,7 +21,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Now You Know — understanding ServiceNow (NOW) stock",
+  title: "Now You Know: understanding ServiceNow (NOW) stock",
   description:
     "A plain-English, independent, educational guide to ServiceNow (NOW) stock: why it moves, what today's price already assumes, and a model to pressure-test it. Not investment advice.",
 };

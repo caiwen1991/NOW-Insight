@@ -18,7 +18,6 @@ export function Basics() {
     <section className="block" id="movement">
       <div className="wrap">
         <div className="section-head">
-          <div className="eyebrow">New to this? Start here</div>
           <h2>Stock movement basics</h2>
           <p className="lede">A quick primer on the daily wiggle.</p>
         </div>
@@ -56,7 +55,7 @@ export function Basics() {
             <h3>The narrative</h3>
             <p>
               New stories re-rate the multiple: an AI product ramp, a big acquisition, a guidance
-              change. The same earnings can be worth more — or less — as the story shifts.
+              change. The same earnings can be worth more, or less, as the story shifts.
             </p>
             <div className="meta tagpos">
               <SparklesIcon /> Now Assist AI · platform expansion

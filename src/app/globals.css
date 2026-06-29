@@ -308,7 +308,7 @@ input[type=range]::-moz-range-thumb { width: 17px; height: 17px; border-radius: 
 .preset { flex: 1; font-family: var(--font-hanken); font-size: 13px; font-weight: 600; padding: 8px 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); cursor: pointer; transition: .15s; }
 .preset:hover { color: var(--ink); }
 .preset.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.preset-note { font-size: 12.5px; line-height: 1.5; color: var(--ink-soft); border-left: 2px solid var(--accent); background: var(--surface); padding: 10px 13px; border-radius: 0 10px 10px 0; margin-bottom: 24px; }
+.preset-note { font-size: 15px; line-height: 1.55; color: var(--ink); border-left: 3px solid var(--accent); background: var(--surface); padding: 13px 16px; border-radius: 0 10px 10px 0; margin-bottom: 24px; }
 .preset-note strong { color: var(--ink); font-weight: 600; }
 
 .results { padding: 32px; }

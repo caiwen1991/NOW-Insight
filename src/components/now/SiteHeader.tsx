@@ -25,7 +25,7 @@ export function SiteHeader() {
         <div className="ticker-pill" title="Live delayed quote · Finnhub">
           <span className="sym">NOW</span>
           <span className="px mono">
-            {loading ? "…" : data ? usd2(data.price) : "—"}
+            {loading ? "…" : data ? usd2(data.price) : "–"}
           </span>
           {dp != null && (
             <span className={`chg ${dir}`}>

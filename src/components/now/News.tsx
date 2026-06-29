@@ -56,7 +56,6 @@ export function News() {
     <section className="block" id="news" style={{ background: "var(--bg-2)" }}>
       <div className="wrap">
         <div className="section-head">
-          <div className="eyebrow">In the news</div>
           <h2>What just happened</h2>
           <p className="lede">The most recent ServiceNow headlines.</p>
         </div>

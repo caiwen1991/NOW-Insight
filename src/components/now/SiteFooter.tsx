@@ -9,7 +9,7 @@ export function SiteFooter() {
               <b>NOW</b> you know
             </div>
             <p style={{ marginTop: 12, maxWidth: "36ch" }}>
-              A personal, independent project for making sense of NOW stock — not affiliated with
+              A personal, independent project for making sense of NOW stock, not affiliated with
               ServiceNow.
             </p>
           </div>

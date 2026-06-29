@@ -24,9 +24,9 @@ const PRESET_LABELS: Record<string, string> = {
 /** Plain-English narrative shown under the buttons when a scenario is selected — summarizes its assumptions. */
 const PRESET_NARRATIVES: Record<string, string> = {
   conservative:
-    "Bear case: near-term growth slows to ~16% and fades to 2% by year 10, the FCF margin holds at ~30%, and a higher 10% discount rate prices in more risk — reflecting AI pressure on seat-based pricing and a platform that matures faster than expected.",
+    "Bear case: near-term growth slows to ~16% and fades to 2% by year 10, the FCF margin holds at ~30%, and a higher 10% discount rate prices in more risk, reflecting AI pressure on seat-based pricing and a platform that matures faster than expected.",
   consensus:
-    "Base case: ~21% near-term growth (in line with the latest reported full year) fading to a 3% long-run rate, a steady ~33% FCF margin, a 9% discount rate and 2.5% perpetuity growth — a middle-of-the-road path roughly consistent with recent results.",
+    "Base case: ~21% near-term growth (in line with the latest reported full year) fading to a 3% long-run rate, a steady ~33% FCF margin, a 9% discount rate and 2.5% perpetuity growth; a middle-of-the-road path roughly consistent with recent results.",
   ambitious:
     "Bull case: AI (Now Assist) keeps growth near 24% before fading to a durable 5%, the FCF margin expands to ~38% (past management's ~35% target), and a lower 8% discount rate reflects high confidence in the platform.",
 };
@@ -139,7 +139,7 @@ function TerminalShareBar({ pvExplicit, pvTerminal }: { pvExplicit: number; pvTe
       </div>
       <p className="tv-note">
         <strong>{pct(termPct, 0)}</strong> of the implied value sits beyond year 10, in the terminal
-        (perpetuity) assumption — which is why the WACC and perpetuity sliders move the answer more than
+        (perpetuity) assumption, which is why the WACC and perpetuity sliders move the answer more than
         year-1 growth.
       </p>
     </div>
@@ -198,9 +198,9 @@ function SensitivityHeatmap({
                   key={`c${ci}`}
                   className={`hm-cell${current ? " current" : ""}`}
                   style={{ background: bg }}
-                  title={`WACC ${pct(w, 1)} · FCF margin ${pct(m, 1)} → ${valid ? usd0(v) : "—"}`}
+                  title={`WACC ${pct(w, 1)} · FCF margin ${pct(m, 1)} → ${valid ? usd0(v) : "–"}`}
                 >
-                  {valid ? Math.round(v) : "—"}
+                  {valid ? Math.round(v) : "–"}
                 </div>
               );
             })}
@@ -208,7 +208,7 @@ function SensitivityHeatmap({
         ))}
       </div>
       <div className="hm-foot">
-        Shaded vs today&rsquo;s {usd0(price)} — green above, red below; ringed = your current
+        Shaded vs today&rsquo;s {usd0(price)}: green above, red below; ringed = your current
         assumptions.
       </div>
     </div>
@@ -313,7 +313,6 @@ export function Modeler() {
     <section className="block" id="model">
       <div className="wrap">
         <div className="section-head">
-          <div className="eyebrow">Pull the levers</div>
           <h2>Model the fair price</h2>
           <p className="lede">
             Set your assumptions, and see the implied value under a simplified Discounted Cash Flow
@@ -375,10 +374,10 @@ export function Modeler() {
                   <div className="k">Implied fair value</div>
                   <div className="bigprice">
                     <span className="cur">$</span>
-                    {valid ? Math.round(fair).toLocaleString("en-US") : "—"}
+                    {valid ? Math.round(fair).toLocaleString("en-US") : "–"}
                   </div>
                   <div className="assume" style={{ marginTop: 8 }}>
-                    per share · today {price != null ? usd0(price) : "—"}
+                    per share · today {price != null ? usd0(price) : "–"}
                   </div>
                 </div>
                 <div className="model-stats">
@@ -389,13 +388,13 @@ export function Modeler() {
                         className="sv"
                         style={{ color: gap != null && gap < 0 ? "var(--neg)" : "var(--pos)" }}
                       >
-                        {gap != null ? signedPct(gap, 0) : "—"}
+                        {gap != null ? signedPct(gap, 0) : "–"}
                       </div>
                     </div>
                     <div className="stat-card">
                       <div className="sk">Implied enterprise value</div>
                       <div className="sv" style={{ color: "var(--ink)" }}>
-                        {valid ? usdB(result.enterpriseValue, 0) : "—"}
+                        {valid ? usdB(result.enterpriseValue, 0) : "–"}
                       </div>
                     </div>
                   </div>
@@ -430,7 +429,7 @@ export function Modeler() {
                 </p>
               ) : (
                 <p className="assumption-note" style={{ maxWidth: "none" }}>
-                  These assumptions don&rsquo;t produce a finite value — the discount rate (WACC) must
+                  These assumptions don&rsquo;t produce a finite value: the discount rate (WACC) must
                   exceed the perpetuity growth rate.
                 </p>
               )}
@@ -438,11 +437,11 @@ export function Modeler() {
           </div>
         </div>
         <p className="assumption-note" style={{ maxWidth: "none" }}>
-          Today: <strong>{price != null ? usd0(price) : "—"}</strong> ·{" "}
-          <span>~{company.sharesOutstanding.toFixed(2)}B</span> shares. A simplified 10-year DCF —
+          Today: <strong>{price != null ? usd0(price) : "–"}</strong> ·{" "}
+          <span>~{company.sharesOutstanding.toFixed(2)}B</span> shares. A simplified 10-year DCF:
           growth fades to your terminal rate, FCF margin is held flat at your assumption, cash flows are
           discounted at your WACC, and a Gordon-growth perpetuity captures value beyond year 10. The discount rate
-          is the annual return an investor requires. Educational — not a forecast or a recommendation.
+          is the annual return an investor requires. Educational, not a forecast or a recommendation.
         </p>
       </div>
     </section>
