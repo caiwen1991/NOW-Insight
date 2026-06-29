@@ -170,7 +170,7 @@ function SensitivityHeatmap({
   return (
     <div className="heatmap">
       <div className="mini-cap">Fair value ($/share) · WACC × FCF margin</div>
-      <div className="hm-grid" style={{ gridTemplateColumns: `auto repeat(${waccCols.length}, 52px)` }}>
+      <div className="hm-grid" style={{ gridTemplateColumns: `auto repeat(${waccCols.length}, var(--hm-cell))` }}>
         <div className="hm-corner">
           margin&nbsp;↓<br />WACC&nbsp;→
         </div>
@@ -219,6 +219,7 @@ export function Modeler() {
   const { data } = useOverview();
   const [inputs, setInputs] = useState<DcfInputs>(DEFAULT_INPUTS);
   const [preset, setPreset] = useState<string | null>("consensus");
+  const [controlsOpen, setControlsOpen] = useState(true);
   const seeded = useRef(false);
 
   const price = data?.price ?? null;
@@ -303,6 +304,9 @@ export function Modeler() {
     0
   )} margin · ${pct(inputs.wacc, 0)} WACC`;
 
+  // Which scenario is active — a preset (Bear/Base/Bull), or "Custom" once a slider is moved.
+  const caseLabel = preset ? PRESET_LABELS[preset] : "Custom";
+
   const projYears = result.perSharesByYear;
   const baseYear = new Date().getFullYear();
   const projLabels = projYears.map((_, i) => `'${String(baseYear + i + 1).slice(2)}`);
@@ -321,10 +325,46 @@ export function Modeler() {
         </div>
 
         <div className="modeler">
-          <div className="modeler-grid">
+          <div className={`modeler-grid${controlsOpen ? "" : " collapsed"}`}>
             {/* Controls */}
             <div className="controls">
-              <h3>Your assumptions</h3>
+              {/* Slim rail shown when collapsed — click to expand to the right */}
+              <button
+                type="button"
+                className="controls-rail"
+                onClick={() => setControlsOpen(true)}
+                aria-label="Show your assumptions"
+                aria-expanded={controlsOpen}
+                aria-controls="assumptions-body"
+              >
+                <span className="controls-rail-icon" aria-hidden>
+                  ›
+                </span>
+                <span className="controls-rail-text">Your assumptions</span>
+                <span className={`controls-rail-case${preset ? "" : " custom"}`}>{caseLabel}</span>
+              </button>
+
+              {/* Full panel shown when expanded */}
+              <div className="controls-full">
+                <button
+                  type="button"
+                  className="controls-toggle"
+                  onClick={() => setControlsOpen(false)}
+                  aria-expanded={controlsOpen}
+                  aria-controls="assumptions-body"
+                >
+                  <span className="controls-toggle-label">
+                    <h3>Your assumptions</h3>
+                  </span>
+                  <span className="controls-toggle-cta">
+                    <span className="chev" aria-hidden>
+                      ‹
+                    </span>
+                    Hide
+                  </span>
+                </button>
+
+                <div id="assumptions-body" className="controls-body-inner">
               <div className="sub">
                 10-year horizon · starting from {`$${company.ttmRevenue.toFixed(1)}B`} revenue
               </div>
@@ -362,6 +402,8 @@ export function Modeler() {
                   <div className="hint">{hintFor(s.key, s.benchmark)}</div>
                 </div>
               ))}
+                </div>
+              </div>
             </div>
 
             {/* Results */}

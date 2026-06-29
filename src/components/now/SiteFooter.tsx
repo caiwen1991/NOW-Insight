@@ -13,13 +13,6 @@ export function SiteFooter() {
               ServiceNow.
             </p>
           </div>
-          <div>
-            <h4>Guide</h4>
-            <a href="#priced-in">What&rsquo;s priced in</a>
-            <a href="#model">Model the stock</a>
-            <a href="#history">Price history</a>
-            <a href="#movement">Stock basics</a>
-          </div>
         </div>
         <div className="legal">
           <strong>Important.</strong> This is a personal, independent educational project. It is not
