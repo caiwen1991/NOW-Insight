@@ -20,11 +20,7 @@ export function Basics() {
         <div className="section-head">
           <div className="eyebrow">New to this? Start here</div>
           <h2>Stock movement basics</h2>
-          <p className="lede">
-            A quick primer on the daily wiggle. Short-term, the price is a live vote on{" "}
-            <em>expectations</em> — not a readout of how the company performed today. Three forces do
-            most of the work.
-          </p>
+          <p className="lede">A quick primer on the daily wiggle.</p>
         </div>
         <div className="cards c3">
           <div className="card">
@@ -67,15 +63,6 @@ export function Basics() {
             </div>
           </div>
         </div>
-        <p className="lede" style={{ marginTop: 36, maxWidth: "70ch" }}>
-          Zoom out far enough and the daily noise fades. What&rsquo;s left is how much cash the
-          business generates and how durably it grows — exactly the levers the{" "}
-          <a href="#model" style={{ color: "var(--accent)", fontWeight: 600, textDecoration: "none" }}>
-            model above
-          </a>{" "}
-          lets you play with.
-        </p>
-
         <LongView />
       </div>
     </section>

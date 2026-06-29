@@ -46,6 +46,16 @@ export interface OverviewPayload {
   week52Low: number | null;
   peTtm: number | null;
 
+  // --- Cost of capital (CAPM): WACC ≈ cost of equity since NOW is net-cash / ~no debt ---
+  /** Equity beta (Finnhub). Null if unavailable → CAPM falls back to a default WACC. */
+  beta: number | null;
+  /** Risk-free rate used in CAPM (decimal) — 10-yr U.S. Treasury, vetted constant. */
+  riskFreeRate: number;
+  /** Equity risk premium used in CAPM (decimal) — a convention. */
+  equityRiskPremium: number;
+  /** CAPM-derived WACC (decimal) = riskFreeRate + beta × equityRiskPremium (clamped); default if no beta. */
+  capmWacc: number;
+
   // --- Fundamentals ($B / decimals / billions of shares) ---
   revenueTtm: number;
   fcfMargin: number;
@@ -87,6 +97,14 @@ export interface OverviewPayload {
 const NO_GROWTH_FCF_MULTIPLE = 15;
 /** Reference price used only if no live quote is available (~post-split level). */
 const PLACEHOLDER_PRICE = 104;
+
+// --- CAPM constants for the WACC derivation ---
+/** 10-year U.S. Treasury yield (decimal) — the risk-free rate. Vetted constant; refresh periodically. */
+const RISK_FREE_RATE = 0.043;
+/** Equity risk premium (decimal) — a convention (long-run U.S. ~4.5–5.5%). */
+const EQUITY_RISK_PREMIUM = 0.05;
+/** WACC fallback (decimal) when beta is unavailable. */
+const DEFAULT_WACC = 0.09;
 
 interface FinnhubQuote {
   c: number;
@@ -169,6 +187,14 @@ export async function GET() {
   const week52Low = num(metric?.["52WeekLow"]);
   const peTtm = num(metric?.["peTTM"]) ?? num(metric?.["peBasicExclExtraTTM"]);
 
+  // --- CAPM WACC: risk-free + beta × ERP (NOW is net-cash, so WACC ≈ cost of equity) ---
+  const beta = num(metric?.["beta"]);
+  const capmWacc =
+    beta != null
+      ? Math.min(0.14, Math.max(0.06, RISK_FREE_RATE + beta * EQUITY_RISK_PREMIUM))
+      : DEFAULT_WACC;
+  if (beta == null) notes.push("Beta unavailable — WACC falls back to a default instead of CAPM.");
+
   // --- Derived ---
   const fcf = revenueTtm * fcfMargin;
   const priceToSales = marketCap / revenueTtm;
@@ -193,6 +219,11 @@ export async function GET() {
     week52High,
     week52Low,
     peTtm,
+
+    beta,
+    riskFreeRate: RISK_FREE_RATE,
+    equityRiskPremium: EQUITY_RISK_PREMIUM,
+    capmWacc,
 
     revenueTtm,
     fcfMargin,

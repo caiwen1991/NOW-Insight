@@ -158,8 +158,7 @@ export function LongView() {
       <div className="longview-head">
         <h3>A decade-plus of compounding — and volatility</h3>
         <p className="lede">
-          Great long-term stocks rarely go up in a straight line. NOW has multiplied many times over
-          since IPO, with several gut-check drawdowns along the way.
+          NOW has multiplied many times over since IPO, with several gut-check drawdowns along the way.
         </p>
       </div>
 

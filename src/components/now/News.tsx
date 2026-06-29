@@ -58,10 +58,7 @@ export function News() {
         <div className="section-head">
           <div className="eyebrow">In the news</div>
           <h2>What just happened</h2>
-          <p className="lede">
-            The most recent ServiceNow headlines from the past week — surfaced automatically for
-            context. These are third-party reports, not endorsements or investment advice.
-          </p>
+          <p className="lede">The most recent ServiceNow headlines.</p>
         </div>
 
         {state === "loading" && <p className="news-status">Loading recent headlines…</p>}

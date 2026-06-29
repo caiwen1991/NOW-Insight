@@ -53,8 +53,10 @@ Key changes that SUPERSEDE the Phase 1 notes below:
 - **There IS a sticky site header + anchor nav now** (reverses the old "no global header" rule) and a
   live ticker pill. Section components live in `src/components/now/*`.
 - **One live data route — `/api/overview`** feeds every number via a shared `OverviewProvider`
-  (single fetch). It fuses Finnhub quote + basic-financials metric (52-wk range, P/E) with EDGAR
-  fundamentals. `lib/edgar.ts` `fetchFundamentals()` computes TTM revenue, reported YoY growth, and
+  (single fetch). It fuses Finnhub quote + basic-financials metric (52-wk range, P/E, **beta**) with
+  EDGAR fundamentals. **CAPM WACC** is derived here: `capmWacc = riskFreeRate + beta × equityRiskPremium`
+  (clamped 6–14%), with `RISK_FREE_RATE` (10-yr Treasury) and `EQUITY_RISK_PREMIUM` as vetted constants
+  in the route — refresh the risk-free rate periodically; falls back to a default WACC if beta is null. `lib/edgar.ts` `fetchFundamentals()` computes TTM revenue, reported YoY growth, and
   FCF margin — using a **cumulative-reconstruction TTM** (full year + current YTD − prior-year YTD)
   because NOW reports operating cash flow as YTD only (Q1 is the sole discrete quarter). Do NOT revert
   to a naive "sum latest 4 quarters" for cash flow — it silently mixes four years' Q1s (gave a wrong
@@ -64,8 +66,9 @@ Key changes that SUPERSEDE the Phase 1 notes below:
   (year-1 growth, terminal growth, flat FCF margin, WACC, perpetuity), three scenario presets —
   Bear / Base / Bull (internal keys conservative/consensus/ambitious; Base is the default). The presets
   are HYBRID: year-1 growth and FCF margin are LIVE-SEEDED from EDGAR (Base = the reported figure,
-  Bear/Bull offset from it — growth ∓5/+3pp, margin ∓3/+5pp); terminal growth, WACC and perpetuity are
-  FIXED per scenario (forward conventions, not EDGAR data). Plus a big "solve for the growth today's
+  Bear/Bull offset from it — growth ∓5/+3pp, margin ∓3/+5pp); WACC is LIVE-DERIVED from a CAPM estimate
+  (Base = `capmWacc` from /api/overview, Bear/Bull ±1pp); terminal growth and perpetuity are FIXED per
+  scenario (forward conventions, not derivable from filings). Plus a big "solve for the growth today's
   price implies" button.
   Output is implied fair value/share, the gap vs the live price, and three teaching graphics in the
   results panel: (1) an **assumed-revenue-growth line chart** by year (`runDcf`'s `perSharesByYear`,

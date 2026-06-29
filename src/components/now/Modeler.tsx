@@ -224,6 +224,7 @@ export function Modeler() {
   const price = data?.price ?? null;
   const reportedG = data?.revenueGrowthYoY ?? null;
   const reportedM = data?.fcfMargin ?? null;
+  const capmWacc = data?.capmWacc ?? null;
 
   // Company facts for the engine — live, with vetted fallbacks.
   const company: DcfCompany = useMemo(
@@ -242,17 +243,18 @@ export function Modeler() {
   };
 
   const presets = useMemo<Record<string, DcfInputs>>(() => {
-    // Revenue (year-1 growth) and FCF margin link to LIVE EDGAR: Base = the reported figure, Bear/Bull
-    // offset from it. Terminal growth, WACC and perpetuity are FIXED per scenario (forward conventions,
-    // not EDGAR-reported). Offsets reproduce the Bear/Base/Bull table when reported g≈21%, m≈33%.
+    // Year-1 growth and FCF margin link to LIVE EDGAR; WACC links to the LIVE CAPM estimate
+    // (Base = derived value, Bear/Bull ±1pp for risk appetite). Terminal growth and perpetuity stay
+    // FIXED per scenario (forward conventions, not derivable from filings).
     const g = reportedG != null ? clamp(reportedG, -0.1, 0.6) : DEFAULT_INPUTS.year1Growth;
     const m = reportedM != null ? clamp(reportedM, 0.1, 0.5) : DEFAULT_INPUTS.terminalFcfMargin;
+    const w = capmWacc != null ? clamp(capmWacc, 0.04, 0.15) : DEFAULT_INPUTS.wacc;
     return {
-      conservative: { year1Growth: clamp(g - 0.05, -0.1, 0.6), terminalGrowth: 0.02, terminalFcfMargin: clamp(m - 0.03, 0.1, 0.5), wacc: 0.1, perpetuityGrowth: 0.02 },
-      consensus: { year1Growth: g, terminalGrowth: 0.03, terminalFcfMargin: m, wacc: 0.09, perpetuityGrowth: 0.025 },
-      ambitious: { year1Growth: clamp(g + 0.03, -0.1, 0.6), terminalGrowth: 0.05, terminalFcfMargin: clamp(m + 0.05, 0.1, 0.5), wacc: 0.08, perpetuityGrowth: 0.03 },
+      conservative: { year1Growth: clamp(g - 0.05, -0.1, 0.6), terminalGrowth: 0.02, terminalFcfMargin: clamp(m - 0.03, 0.1, 0.5), wacc: clamp(w + 0.01, 0.04, 0.15), perpetuityGrowth: 0.02 },
+      consensus: { year1Growth: g, terminalGrowth: 0.03, terminalFcfMargin: m, wacc: w, perpetuityGrowth: 0.025 },
+      ambitious: { year1Growth: clamp(g + 0.03, -0.1, 0.6), terminalGrowth: 0.05, terminalFcfMargin: clamp(m + 0.05, 0.1, 0.5), wacc: clamp(w - 0.01, 0.04, 0.15), perpetuityGrowth: 0.03 },
     };
-  }, [reportedG, reportedM]);
+  }, [reportedG, reportedM, capmWacc]);
 
   // On first data load, apply the live-seeded Base scenario (the default selection).
   useEffect(() => {
@@ -291,6 +293,8 @@ export function Modeler() {
       return `~${pct(reportedG, 0)} FY25 vs. FY24 growth, from latest annual report`;
     if (key === "terminalFcfMargin" && reportedM != null)
       return `~${pct(reportedM, 0)} from latest public filing`;
+    if (key === "wacc" && data?.beta != null)
+      return `CAPM: ${pct(data.riskFreeRate, 1)} risk-free + ${data.beta.toFixed(2)} beta × ${pct(data.equityRiskPremium, 1)} equity risk premium ≈ ${pct(data.capmWacc, 1)}`;
     return fallback;
   };
 
@@ -310,7 +314,7 @@ export function Modeler() {
       <div className="wrap">
         <div className="section-head">
           <div className="eyebrow">Pull the levers</div>
-          <h2>Model the Fair Price</h2>
+          <h2>Model the fair price</h2>
           <p className="lede">
             Set your assumptions, and see the implied value under a simplified Discounted Cash Flow
             (DCF) valuation.
