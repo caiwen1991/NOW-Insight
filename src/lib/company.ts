@@ -93,7 +93,7 @@ export const SLIDERS: SliderConfig[] = [
   },
   {
     key: "terminalFcfMargin",
-    label: "Terminal FCF margin (year 10)",
+    label: "FCF margin (held flat)",
     min: 0.1,
     max: 0.5,
     step: 0.005,

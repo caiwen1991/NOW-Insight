@@ -36,9 +36,13 @@ design decision — it read as clutter. The code/data rule still stands; only th
 ## Redesign (2026-06) — single-page "NOW you know" (CURRENT)
 
 The site was rebuilt from a Claude Design mock into ONE landing page (`src/app/page.tsx`) that
-consolidates the three former routes into anchored sections: hero + live quote card → "What's priced
-in" → interactive Modeler → price History → stock-movement Basics. Key changes that SUPERSEDE the
-Phase 1 notes below:
+consolidates the three former routes into anchored sections: hero + live quote card (price, day delta,
+interactive multi-timeframe trend chart, and a compact one-row stats strip: market cap / today's range
+/ 52-wk range — P/E was dropped from this card to keep it short) → interactive Modeler ("Model the
+Fair Price") → "What just happened" news → stock-movement Basics (with the long-run price chart folded
+in as a sub-block). (The earlier
+"What's priced in" / Expectations-Machine section — `PricedIn.tsx` — was REMOVED; the file is deleted.)
+Key changes that SUPERSEDE the Phase 1 notes below:
 
 - **New design system (plain CSS, not Tailwind).** Tokens/components live in `src/app/globals.css`
   using CSS custom properties (`--bg`, `--ink`, `--accent`, …) under `:root[data-theme="brand"]`
@@ -57,13 +61,49 @@ Phase 1 notes below:
   ~42% FCF margin; correct is ~33%).
 - **The Modeler ("Model it") is the reverse DCF** (`lib/dcf.ts` `runDcf` + `solveImpliedGrowth`),
   seeded live from `/api/overview` (revenue, current FCF margin, net cash, shares). Five sliders
-  (year-1 growth, terminal growth, terminal FCF margin, WACC, perpetuity), three scenario presets
-  (conservative/consensus/ambitious), and a big "solve for the growth today's price implies" button.
-  Output is implied fair value/share, the gap vs the live price, the live implied year-1 growth, a
-  10-year projected-FCF chart, and a value-breakdown line. (It replaced an earlier simple 5-year
-  multiple model.) The peer/daily-move libs remain in the tree (tested) but are not wired to a page.
-- **History line** = a vetted, labeled "approximate split-adjusted annual closes" snapshot
-  (`lib/history.ts`) with the live current price appended — the only intentionally-static series.
+  (year-1 growth, terminal growth, flat FCF margin, WACC, perpetuity), three scenario presets —
+  Bear / Base / Bull (internal keys conservative/consensus/ambitious; Base is the default). The presets
+  are HYBRID: year-1 growth and FCF margin are LIVE-SEEDED from EDGAR (Base = the reported figure,
+  Bear/Bull offset from it — growth ∓5/+3pp, margin ∓3/+5pp); terminal growth, WACC and perpetuity are
+  FIXED per scenario (forward conventions, not EDGAR data). Plus a big "solve for the growth today's
+  price implies" button.
+  Output is implied fair value/share, the gap vs the live price, and three teaching graphics in the
+  results panel: (1) an **assumed-revenue-growth line chart** by year (`runDcf`'s `perSharesByYear`,
+  ZERO-ANCHORED y-axis so a flat series reads flat); (2) a **terminal-value-share stacked bar**
+  (`TerminalShareBar`) splitting EV into PV of the 10-yr cash flows vs. PV of terminal value — the
+  "honesty" graphic showing most of fair value lives beyond year 10; (3) a **2D sensitivity heatmap**
+  (`SensitivityHeatmap`) of fair value over a 5×5 WACC × terminal-FCF-margin grid centered on current
+  inputs, shaded green/red vs. today's price, with the ≈-today cells bolded and the current cell
+  ringed. (History: a year-by-year table → two line charts → this; and originally a projected-FCF bar
+  chart / 5-year multiple model.) The peer/daily-move libs remain in the tree (tested) but not wired.
+- **"What just happened" news** (`src/components/now/News.tsx` + `/api/news`) — the most recent NOW
+  headlines (past 7 days) from **Finnhub `company-news`** (server-side; FINNHUB_API_KEY). Shows ~6
+  de-duplicated items as third-party CONTEXT — each sourced, timestamped, and linking out (new tab,
+  noopener). Analyst-rating / price-target headlines are filtered out server-side (`RATING_RE`) to
+  honor the no-buy/sell-recommendations rule, and a visible disclaimer marks them as third-party / not
+  advice. Sits between the Modeler and History.
+- **Long-view chart** (`src/components/now/LongView.tsx`) = a vetted, labeled "approximate
+  split-adjusted monthly closes" snapshot (`lib/history.ts`) with the live current price appended — the
+  only intentionally-static series. Formerly its own "The long view" section (`History.tsx`, now
+  DELETED); FOLDED into the Basics section (`#movement`) as a sub-block after the "zoom out" paragraph.
+  Because it uses `useOverview`, Basics now renders INSIDE `OverviewProvider`.
+- **Hero trend chart** (`src/components/now/TrendChart.tsx`) — a LIVE price line with selectable
+  timeframes (1D/1W/1M/3M/YTD/1Y/5Y/MAX), fed by `/api/series` from **Twelve Data** `time_series`
+  (server-side; `TWELVE_DATA_API_KEY` never reaches the browser). Replaced the old decorative
+  `AnimatedSparkline`, which now survives only as the loading/unavailable fallback inside TrendChart.
+  Twelve Data returns **split-adjusted** history (verified: continuous across the Dec-2025 5-for-1
+  split, no ~5× cliff), so no back-adjustment is needed. The line is always brand-green (no red/green
+  up-down coloring — keeps the neutral-verdict rule). Intraday windows (1D/1W) and YTD are trimmed
+  server-side in the route. The chart is **pixel-measured** (ResizeObserver, NOT preserveAspectRatio,
+  so axis text isn't distorted in the narrow card): it draws an **x-axis timeline** (labels formatted
+  per range — clock time for 1D, weekday for 1W, dates for mid ranges, years for 5Y/MAX) and a **hover
+  crosshair + tooltip** showing the nearest point's price and timestamp. **1D change baseline = the
+  PREVIOUS CLOSE** (price − today's change, from `/api/overview`), NOT the first intraday bar — NOW can
+  gap up at the open and still be down intraday, so an open-relative number would contradict the
+  header's "+X% today" sign. 1D also draws a dashed "prev close" reference line. Other ranges use their
+  own start-of-window as the baseline. While switching ranges the previous line stays on screen (the
+  ambient animation only shows on first load / when history is unavailable). NOTE: Finnhub's free tier does NOT include historical candles (403), which
+  is why a second provider was added just for this series.
 
 The Phase-1 notes below are retained for historical context; where they conflict with the above, the
 above wins.
@@ -171,7 +211,10 @@ ServiceNow executed a **5-for-1 stock split effective December 17, 2025**.
 - **EDGAR from code requires a `User-Agent` header** with a name and email, or requests get a 403.
 
 ### Price data (delayed quotes)
-- Provider under evaluation: Finnhub / Twelve Data / Alpha Vantage (free tiers).
+- **In use:** Finnhub (live quote, 52-wk range, P/E — `/api/overview`) + Twelve Data (historical
+  `time_series` for the hero trend chart — `/api/series`). Finnhub's free tier lacks historical
+  candles, hence Twelve Data for the series. Both keys are server-side only.
+- Provider history / alternatives considered: Finnhub / Twelve Data / Alpha Vantage (free tiers).
 - Delay is provider-dependent (~real-time to 20 min on free tiers); spec it as "delayed," not exactly 15 min.
 - For decomposition, also pull a market proxy (e.g. SPY) and a software-sector proxy (e.g. IGV).
 - **Licensing: before public launch, verify the chosen provider's terms allow public DISPLAY/redistribution
@@ -182,14 +225,16 @@ ServiceNow executed a **5-for-1 stock split effective December 17, 2025**.
 Engine logic — preserve exactly when implementing:
 - Revenue grows from a starting TTM base; **Year-1 growth fades linearly to a terminal growth rate by
   the end of a 10-year horizon.**
-- **FCF margin ramps linearly** from the current FCF margin to a target terminal margin by Year 10.
+- **FCF margin is held CONSTANT** across all 10 years at the `terminalFcfMargin` assumption (a flat
+  margin — changed from the original "ramp from current margin to a year-10 target"). `currentFcfMargin`
+  is now reference-only (still seeds presets) and no longer drives the projection.
 - Each year: FCF = revenue × FCF margin; discount at WACC.
 - Terminal value via Gordon growth: `lastFCF × (1 + perpetuity) / (WACC − perpetuity)`, then discounted.
 - Enterprise value = sum of PV(FCF) + PV(terminal value).
 - Equity value = EV + net cash (NOW is in a NET CASH position: cash > debt, so this ADDS to equity value).
 - Implied fair value per share = equity value / current post-split share count.
 
-Five user-adjustable inputs (sliders): Year-1 revenue growth, terminal growth, terminal FCF margin,
+Five user-adjustable inputs (sliders): Year-1 revenue growth, terminal growth, FCF margin (held flat),
 WACC, perpetuity growth. Include a "solve for implied growth" feature (binary search for the Year-1
 growth that makes fair value = current price).
 

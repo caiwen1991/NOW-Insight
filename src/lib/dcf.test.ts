@@ -21,11 +21,17 @@ describe("runDcf", () => {
     expect(runDcf(inputs, company).perSharesByYear).toHaveLength(HORIZON);
   });
 
-  it("applies year1Growth and currentFcfMargin in year 1", () => {
+  it("applies year1Growth in year 1", () => {
     const y1 = runDcf(inputs, company).perSharesByYear[0];
     expect(y1.growth).toBeCloseTo(inputs.year1Growth, 10);
     expect(y1.revenue).toBeCloseTo(company.ttmRevenue * (1 + inputs.year1Growth), 6);
-    expect(y1.fcfMargin).toBeCloseTo(company.currentFcfMargin, 10);
+  });
+
+  it("holds FCF margin flat at the assumption across every year", () => {
+    const years = runDcf(inputs, company).perSharesByYear;
+    for (const y of years) {
+      expect(y.fcfMargin).toBeCloseTo(inputs.terminalFcfMargin, 10);
+    }
   });
 
   it("adds net cash to enterprise value to get equity value, then divides by shares", () => {

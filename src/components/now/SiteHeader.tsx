@@ -18,9 +18,8 @@ export function SiteHeader() {
           </span>
         </div>
         <nav className="links">
-          <a href="#priced-in">What&rsquo;s priced in</a>
           <a href="#model">Model it</a>
-          <a href="#history">History</a>
+          <a href="#news">What just happened</a>
           <a href="#movement">Basics</a>
         </nav>
         <div className="ticker-pill" title="Live delayed quote · Finnhub">

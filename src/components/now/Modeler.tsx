@@ -6,7 +6,7 @@
  * today's live price fixed and solve for the year-1 growth the market is implying. All company facts
  * (revenue, current FCF margin, net cash, shares) come live from /api/overview (EDGAR + Finnhub).
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useOverview } from "./OverviewProvider";
 import { runDcf, type DcfInputs, type DcfCompany } from "@/lib/dcf";
 import { NOW_COMPANY, DEFAULT_INPUTS, SLIDERS } from "@/lib/company";
@@ -17,23 +17,203 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 /** Display labels for the three scenario presets (internal keys stay conservative/consensus/ambitious). */
 const PRESET_LABELS: Record<string, string> = {
   conservative: "Bear",
-  consensus: "Management",
+  consensus: "Base",
   ambitious: "Bull",
 };
 
-/**
- * Plain-English narrative shown under the buttons when a scenario is selected. The Management case is
- * anchored to ServiceNow's FY2026 guidance from its Q1 2026 investor presentation (Apr 22, 2026):
- * subscription revenue ~+22%, non-GAAP operating margin 31.5%, non-GAAP FCF margin 35%.
- */
+/** Plain-English narrative shown under the buttons when a scenario is selected — summarizes its assumptions. */
 const PRESET_NARRATIVES: Record<string, string> = {
   conservative:
-    "Bear case: growth decelerates well below guidance toward the low-teens and free-cash-flow margins slip to ~30%, as AI pressures seat-based pricing and the platform matures faster than management expects.",
+    "Bear case: near-term growth slows to ~16% and fades to 2% by year 10, the FCF margin holds at ~30%, and a higher 10% discount rate prices in more risk — reflecting AI pressure on seat-based pricing and a platform that matures faster than expected.",
   consensus:
-    "Anchored to ServiceNow's FY2026 guidance (Q1'26 deck, Apr 2026): ~22% subscription-revenue growth, a 31.5% operating margin and a 35% non-GAAP FCF margin (Q1'26 ran 32% / 44%). Here growth starts near that pace and fades to a 3% long-run rate while margins hold in the low-30s.",
+    "Base case: ~21% near-term growth (in line with the latest reported full year) fading to a 3% long-run rate, a steady ~33% FCF margin, a 9% discount rate and 2.5% perpetuity growth — a middle-of-the-road path roughly consistent with recent results.",
   ambitious:
-    "Bull case: AI (Now Assist) keeps growth in the high-20s and FCF margins expand past management's ~35% target toward ~38%, with demand durable enough to support a higher long-run growth rate.",
+    "Bull case: AI (Now Assist) keeps growth near 24% before fading to a durable 5%, the FCF margin expands to ~38% (past management's ~35% target), and a lower 8% discount rate reflects high confidence in the platform.",
 };
+
+/**
+ * Small pixel-measured line chart for one assumed series across the 10-year horizon. Measures its own
+ * width (ResizeObserver) so the line fills the column and the axis/value labels render crisp (no
+ * aspect-ratio distortion). Each point is dotted and labeled with its value; years run along the base.
+ */
+function MiniSeriesChart({
+  label,
+  years,
+  values,
+  format,
+}: {
+  label: string;
+  years: string[];
+  values: number[];
+  format: (v: number) => string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [w, setW] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const sync = () => setW(el.clientWidth);
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const H = 128;
+  const padT = 16;
+  const padB = 22;
+  const padX = 18;
+  const n = values.length;
+  const max = Math.max(...values);
+  // Zero-anchored y-axis: a nearly-flat series (e.g. a steady margin) must read as flat, not as a
+  // dramatic slope from a truncated axis. Headroom at the top leaves room for the value labels.
+  const lo = 0;
+  const hi = max * 1.18 || 1;
+  const span = hi - lo || 1;
+  const gid = `mc-${label.replace(/\s+/g, "")}`;
+
+  const x = (i: number) => (n <= 1 ? w / 2 : padX + (i / (n - 1)) * (w - 2 * padX));
+  const y = (v: number) => padT + (1 - (v - lo) / span) * (H - padT - padB);
+  const d = w > 0 ? values.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ") : "";
+  const area = w > 0 ? `${d} L${x(n - 1).toFixed(1)},${(H - padB).toFixed(1)} L${x(0).toFixed(1)},${(H - padB).toFixed(1)} Z` : "";
+
+  return (
+    <div className="mini-chart">
+      <div className="mini-cap">{label}</div>
+      <div ref={ref} className="mini-plot">
+        {w > 0 && (
+          <svg width={w} height={H} aria-label={`${label} by year`} style={{ display: "block" }}>
+            <defs>
+              <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.16" />
+                <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <line x1={0} x2={w} y1={H - padB} y2={H - padB} stroke="var(--line)" />
+            <path d={area} fill={`url(#${gid})`} stroke="none" />
+            <path d={d} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            {values.map((v, i) => (
+              <g key={i}>
+                <circle cx={x(i)} cy={y(v)} r={2.6} fill="var(--accent)" />
+                <text x={x(i)} y={y(v) - 7} textAnchor="middle" fontSize={9} fill="var(--ink-soft)" fontFamily="var(--font-plex), monospace">
+                  {format(v)}
+                </text>
+                <text x={x(i)} y={H - 7} textAnchor="middle" fontSize={9.5} fill="var(--ink-faint)">
+                  {years[i]}
+                </text>
+              </g>
+            ))}
+          </svg>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Terminal-value share — the "honesty" graphic. A stacked bar splitting enterprise value into the PV
+ * of the explicit 10-year cash flows vs. the PV of the terminal (perpetuity) value. The point it
+ * teaches: most of a DCF's "fair value" usually lives beyond year 10, so the WACC/perpetuity
+ * assumptions matter more than the year-1 growth slider people instinctively drag.
+ */
+function TerminalShareBar({ pvExplicit, pvTerminal }: { pvExplicit: number; pvTerminal: number }) {
+  const ev = pvExplicit + pvTerminal;
+  const termPct = ev > 0 ? pvTerminal / ev : 0;
+  const expPct = 1 - termPct;
+  return (
+    <div className="tvshare">
+      <div className="mini-cap">Where today&rsquo;s value comes from</div>
+      <div className="tv-bar">
+        {/* Fixed precision: raw floats serialize differently server vs client → hydration mismatch. */}
+        <div className="tv-seg tv-exp" style={{ width: `${(expPct * 100).toFixed(2)}%` }} />
+        <div className="tv-seg tv-term" style={{ width: `${(termPct * 100).toFixed(2)}%` }} />
+      </div>
+      <div className="tv-legend">
+        <span>
+          <i className="tv-dot tv-exp" /> 10-yr cash flows · {usdB(pvExplicit, 0)} ({pct(expPct, 0)})
+        </span>
+        <span>
+          <i className="tv-dot tv-term" /> Terminal value · {usdB(pvTerminal, 0)} ({pct(termPct, 0)})
+        </span>
+      </div>
+      <p className="tv-note">
+        <strong>{pct(termPct, 0)}</strong> of the implied value sits beyond year 10, in the terminal
+        (perpetuity) assumption — which is why the WACC and perpetuity sliders move the answer more than
+        year-1 growth.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * 2D sensitivity heatmap — fair value across WACC (columns) × FCF margin (rows), a 5×5 grid centered
+ * on the current assumptions. Cells are shaded vs. today's price (green above / red below) and the
+ * center cell (= current assumptions) is ringed. The lesson: see how fragile the single number is.
+ */
+function SensitivityHeatmap({
+  inputs,
+  company,
+  price,
+}: {
+  inputs: DcfInputs;
+  company: DcfCompany;
+  price: number;
+}) {
+  const minWacc = inputs.perpetuityGrowth + 0.006; // keep WACC > perpetuity so the DCF stays finite
+  const waccCols = [-2, -1, 0, 1, 2].map((k) => Math.max(minWacc, +(inputs.wacc + k * 0.01).toFixed(4)));
+  const marginRows = [2, 1, 0, -1, -2].map((k) => clamp(+(inputs.terminalFcfMargin + k * 0.03).toFixed(4), 0.05, 0.6));
+
+  const fairAt = (w: number, m: number) =>
+    runDcf({ ...inputs, wacc: w, terminalFcfMargin: m }, company).fairValuePerShare;
+
+  return (
+    <div className="heatmap">
+      <div className="mini-cap">Fair value ($/share) · WACC × FCF margin</div>
+      <div className="hm-grid" style={{ gridTemplateColumns: `auto repeat(${waccCols.length}, 52px)` }}>
+        <div className="hm-corner">
+          margin&nbsp;↓<br />WACC&nbsp;→
+        </div>
+        {waccCols.map((w, i) => (
+          <div key={`c${i}`} className="hm-colh">
+            {pct(w, 0)}
+          </div>
+        ))}
+        {marginRows.map((m, ri) => (
+          <Fragment key={`r${ri}`}>
+            <div className="hm-rowh">{pct(m, 0)}</div>
+            {waccCols.map((w, ci) => {
+              const v = fairAt(w, m);
+              const valid = Number.isFinite(v);
+              const g = valid ? v / price - 1 : 0;
+              const t = Math.max(-1, Math.min(1, g / 0.6));
+              const bg = !valid
+                ? "var(--surface)"
+                : t >= 0
+                  ? `color-mix(in srgb, var(--pos) ${Math.round(t * 44)}%, var(--surface))`
+                  : `color-mix(in srgb, var(--neg) ${Math.round(-t * 44)}%, var(--surface))`;
+              const current = ci === 2 && ri === 2;
+              return (
+                <div
+                  key={`c${ci}`}
+                  className={`hm-cell${current ? " current" : ""}`}
+                  style={{ background: bg }}
+                  title={`WACC ${pct(w, 1)} · FCF margin ${pct(m, 1)} → ${valid ? usd0(v) : "—"}`}
+                >
+                  {valid ? Math.round(v) : "—"}
+                </div>
+              );
+            })}
+          </Fragment>
+        ))}
+      </div>
+      <div className="hm-foot">
+        Shaded vs today&rsquo;s {usd0(price)} — green above, red below; ringed = your current
+        assumptions.
+      </div>
+    </div>
+  );
+}
 
 export function Modeler() {
   const { data } = useOverview();
@@ -62,16 +242,19 @@ export function Modeler() {
   };
 
   const presets = useMemo<Record<string, DcfInputs>>(() => {
+    // Revenue (year-1 growth) and FCF margin link to LIVE EDGAR: Base = the reported figure, Bear/Bull
+    // offset from it. Terminal growth, WACC and perpetuity are FIXED per scenario (forward conventions,
+    // not EDGAR-reported). Offsets reproduce the Bear/Base/Bull table when reported g≈21%, m≈33%.
     const g = reportedG != null ? clamp(reportedG, -0.1, 0.6) : DEFAULT_INPUTS.year1Growth;
     const m = reportedM != null ? clamp(reportedM, 0.1, 0.5) : DEFAULT_INPUTS.terminalFcfMargin;
     return {
-      conservative: { year1Growth: clamp(g - 0.09, -0.1, 0.6), terminalGrowth: 0.025, terminalFcfMargin: clamp(m - 0.03, 0.1, 0.5), wacc: 0.09, perpetuityGrowth: 0.025 },
-      consensus: { year1Growth: g, terminalGrowth: 0.03, terminalFcfMargin: 0.33, wacc: 0.09, perpetuityGrowth: 0.025 },
-      ambitious: { year1Growth: clamp(g + 0.06, -0.1, 0.6), terminalGrowth: 0.04, terminalFcfMargin: clamp(m + 0.05, 0.1, 0.5), wacc: 0.09, perpetuityGrowth: 0.025 },
+      conservative: { year1Growth: clamp(g - 0.05, -0.1, 0.6), terminalGrowth: 0.02, terminalFcfMargin: clamp(m - 0.03, 0.1, 0.5), wacc: 0.1, perpetuityGrowth: 0.02 },
+      consensus: { year1Growth: g, terminalGrowth: 0.03, terminalFcfMargin: m, wacc: 0.09, perpetuityGrowth: 0.025 },
+      ambitious: { year1Growth: clamp(g + 0.03, -0.1, 0.6), terminalGrowth: 0.05, terminalFcfMargin: clamp(m + 0.05, 0.1, 0.5), wacc: 0.08, perpetuityGrowth: 0.03 },
     };
   }, [reportedG, reportedM]);
 
-  // On first data load, apply the live-seeded Consensus scenario (the default selection).
+  // On first data load, apply the live-seeded Base scenario (the default selection).
   useEffect(() => {
     if (seeded.current || !data) return;
     seeded.current = true;
@@ -105,9 +288,9 @@ export function Modeler() {
 
   const hintFor = (key: keyof DcfInputs, fallback: string) => {
     if (key === "year1Growth" && reportedG != null)
-      return `Reported: ~${pct(reportedG, 0)} YoY (EDGAR). Fades to your terminal rate by year 10.`;
+      return `~${pct(reportedG, 0)} FY25 vs. FY24 growth, from latest annual report`;
     if (key === "terminalFcfMargin" && reportedM != null)
-      return `Today ~${pct(reportedM, 0)} (EDGAR); ramps to this by year 10.`;
+      return `~${pct(reportedM, 0)} from latest public filing`;
     return fallback;
   };
 
@@ -116,9 +299,11 @@ export function Modeler() {
     0
   )} margin · ${pct(inputs.wacc, 0)} WACC`;
 
-  const fcfYears = result.perSharesByYear;
-  const maxFcf = Math.max(...fcfYears.map((y) => y.fcf), 1);
+  const projYears = result.perSharesByYear;
   const baseYear = new Date().getFullYear();
+  const projLabels = projYears.map((_, i) => `'${String(baseYear + i + 1).slice(2)}`);
+  const growthSeries = projYears.map((y) => y.growth);
+  const fmtPct1 = (v: number) => pct(v, 1);
 
   return (
     <section className="block" id="model">
@@ -218,27 +403,26 @@ export function Modeler() {
               </div>
 
               <div className="proj-chart">
-                <div className="cap">
-                  <span>Projected free cash flow ($B)</span>
-                  <span>Year 1 → 10</span>
-                </div>
-                <div className="barscol">
-                  {fcfYears.map((y, i) => (
-                    <div className="col" key={y.year}>
-                      <div className="bv">{y.fcf.toFixed(0)}</div>
-                      <div className="bx" style={{ height: `${(y.fcf / maxFcf) * 100}%` }} />
-                      <div className="yr">{`'${String(baseYear + i + 1).slice(2)}`}</div>
-                    </div>
-                  ))}
-                </div>
+                <MiniSeriesChart label="Assumed revenue growth by year" years={projLabels} values={growthSeries} format={fmtPct1} />
               </div>
+
+              {valid && (
+                <div className="proj-chart">
+                  <TerminalShareBar pvExplicit={result.pvExplicit} pvTerminal={result.pvTerminal} />
+                </div>
+              )}
+
+              {valid && price != null && (
+                <div className="proj-chart">
+                  <SensitivityHeatmap inputs={inputs} company={company} price={price} />
+                </div>
+              )}
 
               {valid ? (
                 <p className="assumption-note" style={{ maxWidth: "none" }}>
-                  {usdB(result.pvExplicit, 0)} PV of 10-yr cash flows + {usdB(result.pvTerminal, 0)} PV
-                  of terminal value = {usdB(result.enterpriseValue, 0)} enterprise value, +{" "}
-                  {usdB(company.netCash, 1)} net cash = {usdB(result.equityValue, 0)} equity ÷{" "}
-                  {company.sharesOutstanding.toFixed(2)}B shares = ${fair.toFixed(0)}/share.
+                  {usdB(result.enterpriseValue, 0)} enterprise value + {usdB(company.netCash, 1)} net
+                  cash = {usdB(result.equityValue, 0)} equity ÷ {company.sharesOutstanding.toFixed(2)}B
+                  shares = ${fair.toFixed(0)}/share.
                 </p>
               ) : (
                 <p className="assumption-note" style={{ maxWidth: "none" }}>
@@ -252,8 +436,8 @@ export function Modeler() {
         <p className="assumption-note" style={{ maxWidth: "none" }}>
           Today: <strong>{price != null ? usd0(price) : "—"}</strong> ·{" "}
           <span>~{company.sharesOutstanding.toFixed(2)}B</span> shares. A simplified 10-year DCF —
-          growth fades to your terminal rate, FCF margin ramps to target, cash flows are discounted at
-          your WACC, and a Gordon-growth perpetuity captures value beyond year 10. The discount rate
+          growth fades to your terminal rate, FCF margin is held flat at your assumption, cash flows are
+          discounted at your WACC, and a Gordon-growth perpetuity captures value beyond year 10. The discount rate
           is the annual return an investor requires. Educational — not a forecast or a recommendation.
         </p>
       </div>

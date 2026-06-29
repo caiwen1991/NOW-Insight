@@ -38,6 +38,10 @@ export interface OverviewPayload {
   // --- Market stats ---
   /** Market cap in $B (price × shares). */
   marketCap: number;
+  /** Intraday high for the current session (Finnhub quote `h`). */
+  dayHigh: number | null;
+  /** Intraday low for the current session (Finnhub quote `l`). */
+  dayLow: number | null;
   week52High: number | null;
   week52Low: number | null;
   peTtm: number | null;
@@ -88,6 +92,8 @@ interface FinnhubQuote {
   c: number;
   d: number | null;
   dp: number | null;
+  h: number | null;
+  l: number | null;
   t: number;
 }
 
@@ -157,6 +163,8 @@ export async function GET() {
 
   // --- Market stats ---
   const marketCap = price * shares; // $B (price $ × shares in billions)
+  const dayHigh = num(quote?.h);
+  const dayLow = num(quote?.l);
   const week52High = num(metric?.["52WeekHigh"]);
   const week52Low = num(metric?.["52WeekLow"]);
   const peTtm = num(metric?.["peTTM"]) ?? num(metric?.["peBasicExclExtraTTM"]);
@@ -180,6 +188,8 @@ export async function GET() {
     priceIsPlaceholder,
 
     marketCap,
+    dayHigh,
+    dayLow,
     week52High,
     week52Low,
     peTtm,

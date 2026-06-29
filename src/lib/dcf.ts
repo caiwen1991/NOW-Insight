@@ -21,7 +21,7 @@ export interface DcfInputs {
   year1Growth: number;
   /** Terminal revenue growth rate reached at year 10 (decimal). */
   terminalGrowth: number;
-  /** Target FCF margin reached at year 10 (decimal). Ramps linearly from current margin. */
+  /** FCF margin assumption, held CONSTANT across all 10 years (decimal). */
   terminalFcfMargin: number;
   /** Weighted average cost of capital / discount rate (decimal). Must exceed `perpetuityGrowth`. */
   wacc: number;
@@ -33,7 +33,8 @@ export interface DcfInputs {
 export interface DcfCompany {
   /** Trailing-twelve-month revenue base, in $B. */
   ttmRevenue: number;
-  /** Current FCF margin (decimal). The margin ramp starts here. */
+  /** Current FCF margin (decimal). Reference only — kept for seeding presets; the projection now
+   * holds margin flat at the `terminalFcfMargin` assumption rather than ramping from this. */
   currentFcfMargin: number;
   /** Net cash position in $B (cash minus debt). NOW is net cash, so this ADDS to equity value. */
   netCash: number;
@@ -81,13 +82,13 @@ function lerpOverHorizon(a: number, b: number, year: number): number {
  *
  * Year-by-year:
  *  - growth fades linearly from `year1Growth` (year 1) to `terminalGrowth` (year 10)
- *  - FCF margin ramps linearly from `currentFcfMargin` (year 1) to `terminalFcfMargin` (year 10)
+ *  - FCF margin is held CONSTANT at `terminalFcfMargin` for every year (a flat assumption)
  *  - revenue compounds; FCF = revenue × margin; discount at WACC
  * Terminal value uses Gordon growth on the last year's FCF, then is discounted back.
  */
 export function runDcf(inputs: DcfInputs, company: DcfCompany): DcfResult {
   const { year1Growth, terminalGrowth, terminalFcfMargin, wacc, perpetuityGrowth } = inputs;
-  const { ttmRevenue, currentFcfMargin, netCash, sharesOutstanding } = company;
+  const { ttmRevenue, netCash, sharesOutstanding } = company;
 
   const years: ProjectionYear[] = [];
   let revenue = ttmRevenue;
@@ -97,7 +98,7 @@ export function runDcf(inputs: DcfInputs, company: DcfCompany): DcfResult {
   for (let year = 1; year <= HORIZON; year++) {
     const growth = lerpOverHorizon(year1Growth, terminalGrowth, year);
     revenue = revenue * (1 + growth);
-    const fcfMargin = lerpOverHorizon(currentFcfMargin, terminalFcfMargin, year);
+    const fcfMargin = terminalFcfMargin; // held flat across the horizon
     const fcf = revenue * fcfMargin;
     const discountFactor = 1 / Math.pow(1 + wacc, year);
     const pvFcf = fcf * discountFactor;

@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * Long-run price history. The line is the vetted split-adjusted annual-close snapshot
- * (lib/history.ts) with the LIVE current price appended as the final point, so it always ends on
- * today's real quote. Milestone copy is editorial context, not market data.
+ * "The long view" — folded into the Stock-movement-basics section as a sub-block (not its own
+ * section). The line is the vetted split-adjusted monthly-close snapshot (lib/history.ts) with the
+ * LIVE current price appended as the final point, so it always ends on today's real quote. Milestone
+ * copy is editorial context, not market data. Renders inside OverviewProvider (via Basics).
  */
 import { useState } from "react";
 import { useOverview } from "./OverviewProvider";
@@ -150,50 +151,47 @@ function TimelineChart({ current }: { current: number | null }) {
   );
 }
 
-export function History() {
+export function LongView() {
   const { data } = useOverview();
   return (
-    <section className="block" id="history" style={{ background: "var(--bg-2)" }}>
-      <div className="wrap">
-        <div className="section-head">
-          <div className="eyebrow">The long view</div>
-          <h2>A decade-plus of compounding — and volatility</h2>
-          <p className="lede">
-            Great long-term stocks rarely go up in a straight line. NOW has multiplied many times over
-            since IPO, with several gut-check drawdowns along the way.
-          </p>
-        </div>
+    <div className="longview">
+      <div className="longview-head">
+        <h3>A decade-plus of compounding — and volatility</h3>
+        <p className="lede">
+          Great long-term stocks rarely go up in a straight line. NOW has multiplied many times over
+          since IPO, with several gut-check drawdowns along the way.
+        </p>
+      </div>
 
-        <div className="timeline-chart">
-          <TimelineChart current={data?.price ?? null} />
-          <div style={{ fontSize: 12, color: "var(--ink-faint)", textAlign: "right" }}>
-            Approximate split-adjusted monthly closes · current price live
-          </div>
-        </div>
-
-        <div className="milestones">
-          <div className="ms">
-            <div className="yr">2012</div>
-            <div className="t">IPO at ~$18</div>
-            <div className="d">Debuts on the NYSE as the workflow platform for IT.</div>
-          </div>
-          <div className="ms">
-            <div className="yr">2020–21</div>
-            <div className="t">Cloud super-cycle</div>
-            <div className="d">Digital transformation sends shares to new highs.</div>
-          </div>
-          <div className="ms">
-            <div className="yr">2024</div>
-            <div className="t">~$212 all-time high</div>
-            <div className="d">AI optimism crowns it a &ldquo;class of one&rdquo; compounder.</div>
-          </div>
-          <div className="ms">
-            <div className="yr">2025</div>
-            <div className="t">5-for-1 split · pullback</div>
-            <div className="d">Shares split, then de-rate on AI-disruption fears.</div>
-          </div>
+      <div className="timeline-chart">
+        <TimelineChart current={data?.price ?? null} />
+        <div style={{ fontSize: 12, color: "var(--ink-faint)", textAlign: "right" }}>
+          Approximate split-adjusted monthly closes · current price live
         </div>
       </div>
-    </section>
+
+      <div className="milestones">
+        <div className="ms">
+          <div className="yr">2012</div>
+          <div className="t">IPO at ~$18</div>
+          <div className="d">Debuts on the NYSE as the workflow platform for IT.</div>
+        </div>
+        <div className="ms">
+          <div className="yr">2020–21</div>
+          <div className="t">Cloud super-cycle</div>
+          <div className="d">Digital transformation sends shares to new highs.</div>
+        </div>
+        <div className="ms">
+          <div className="yr">2024</div>
+          <div className="t">~$212 all-time high</div>
+          <div className="d">AI optimism crowns it a &ldquo;class of one&rdquo; compounder.</div>
+        </div>
+        <div className="ms">
+          <div className="yr">2025</div>
+          <div className="t">5-for-1 split · pullback</div>
+          <div className="d">Shares split, then de-rate on AI-disruption fears.</div>
+        </div>
+      </div>
+    </div>
   );
 }
