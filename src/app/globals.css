@@ -149,7 +149,9 @@ header.site {
     radial-gradient(700px 360px at 88% -10%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 70%),
     radial-gradient(560px 300px at 0% 120%, color-mix(in srgb, var(--sage) 18%, transparent), transparent 70%);
 }
-.hero-inner { position: relative; z-index: 1; padding: 76px 0 84px; display: grid; grid-template-columns: 1.15fr .85fr; gap: 56px; align-items: center; }
+.hero-inner { position: relative; z-index: 1; padding: 76px 0 84px; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 56px; align-items: center; }
+/* min-width:0 lets the card (and its pixel-measured chart SVG) shrink to the column instead of forcing the track wider than the viewport. */
+.hero-inner > * { min-width: 0; }
 .hero h1 { color: var(--hero-ink); font-size: clamp(36px, 5vw, 60px); font-weight: 800; letter-spacing: -0.03em; }
 .hero h1 em { font-style: normal; color: var(--accent); }
 .hero .lede { color: var(--hero-ink-soft); margin-top: 22px; max-width: 30ch; }
@@ -440,10 +442,11 @@ footer.site a:hover { color: var(--hero-ink); }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 920px) {
-  .hero-inner { grid-template-columns: 1fr; gap: 36px; padding: 52px 0 60px; }
+  .hero-inner { grid-template-columns: minmax(0, 1fr); gap: 36px; padding: 52px 0 60px; }
   .cards.c3, .cards.c2 { grid-template-columns: 1fr; }
   .priced { grid-template-columns: 1fr; gap: 28px; }
-  .modeler-grid { grid-template-columns: 1fr; }
+  .modeler-grid { grid-template-columns: minmax(0, 1fr); }
+  .modeler-grid > * { min-width: 0; }
   .controls { border-right: none; border-bottom: 1px solid var(--line); }
   .controls-full { width: auto; }
   .milestones { grid-template-columns: 1fr 1fr; }
@@ -457,5 +460,17 @@ footer.site a:hover { color: var(--hero-ink); }
   .milestones { grid-template-columns: 1fr; }
   .ticker-pill .sym { display: none; }
   footer.site .ftop { grid-template-columns: 1fr; }
+  /* Stats strip: stack into compact label-left / value-right rows so nowrap ranges don't clip on phones. */
+  .quote-grid { grid-template-columns: 1fr; }
+  .quote-grid > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .quote-grid .v { margin-top: 0; }
+  /* Let the card's "Updated as of …" timestamp wrap instead of overflowing on very narrow phones. */
+  .quote-card .row1 { flex-wrap: wrap; }
+  .quote-card .exch { white-space: normal; }
+  /* Tighten the dense modeler panels on phones so their content has more room. */
+  .controls, .results { padding: 20px; }
+  /* Shrink the heatmap cells so all 5 WACC columns fit on standard phones; overflow-x is the fallback for very narrow screens. */
+  .hm-grid { --hm-cell: 42px; }
+  .heatmap { overflow-x: auto; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } html { scroll-behavior: auto; } }
