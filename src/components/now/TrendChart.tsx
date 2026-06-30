@@ -166,7 +166,7 @@ function TrendPlot({
   range: Range;
   baseline?: number | null;
   // Direction of the current price vs. the baseline (prev close / 12am price): true = up, false = down.
-  // Colors the dashed reference line green/red. null leaves it neutral (non-1D ranges).
+  // Colors the price LINE green/red. null leaves it the neutral brand accent (non-1D ranges).
   baselineUp?: boolean | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -205,6 +205,9 @@ function TrendPlot({
   const x = (i: number) => (n === 1 ? w / 2 : (i / (n - 1)) * w);
   const y = (c: number) => padT + (1 - (c - min) / span) * plotH;
 
+  // Price line color: green/red by today's direction (vs. yesterday's close) on 1D; neutral accent otherwise.
+  const lineColor = baselineUp == null ? "var(--accent)" : baselineUp ? "var(--pos)" : "var(--neg)";
+
   const d = w > 0 ? points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.c).toFixed(1)}`).join(" ") : "";
 
   // ~4 evenly spaced ticks, offset from the edges so end labels don't clip.
@@ -229,27 +232,13 @@ function TrendPlot({
           <line x1={0} x2={w} y1={padT + plotH} y2={padT + plotH} stroke="var(--hero-ink)" strokeOpacity={0.16} />
           {baseline != null && (
             <>
-              <line
-                x1={0}
-                x2={w}
-                y1={y(baseline)}
-                y2={y(baseline)}
-                stroke={baselineUp == null ? "var(--hero-ink)" : baselineUp ? "var(--pos)" : "var(--neg)"}
-                strokeOpacity={baselineUp == null ? 0.34 : 0.75}
-                strokeDasharray="4 3"
-              />
-              <text
-                x={w - 2}
-                y={y(baseline) - 4}
-                textAnchor="end"
-                fontSize={9}
-                fill={baselineUp == null ? "var(--hero-ink-soft)" : baselineUp ? "var(--pos)" : "var(--neg)"}
-              >
+              <line x1={0} x2={w} y1={y(baseline)} y2={y(baseline)} stroke="var(--hero-ink)" strokeOpacity={0.34} strokeDasharray="4 3" />
+              <text x={w - 2} y={y(baseline) - 4} textAnchor="end" fontSize={9} fill="var(--hero-ink-soft)">
                 prev close {usd2(baseline)}
               </text>
             </>
           )}
-          <path d={d} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+          <path d={d} fill="none" stroke={lineColor} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
           {tickIdx.map((i) => (
             <text
               key={i}
@@ -265,7 +254,7 @@ function TrendPlot({
           {hp && (
             <>
               <line x1={hx} x2={hx} y1={padT} y2={padT + plotH} stroke="var(--hero-ink)" strokeOpacity={0.32} strokeDasharray="3 3" />
-              <circle cx={hx} cy={hy} r={3.5} fill="var(--accent)" stroke="var(--hero-bg)" strokeWidth={2} />
+              <circle cx={hx} cy={hy} r={3.5} fill={lineColor} stroke="var(--hero-bg)" strokeWidth={2} />
             </>
           )}
         </svg>
