@@ -183,8 +183,13 @@ function TrendPlot({
     return () => ro.disconnect();
   }, []);
 
-  // Reset any stale hover when the series changes (e.g. switching timeframe).
-  useEffect(() => setHover(null), [points]);
+  // Reset any stale hover when the series changes (e.g. switching timeframe). Adjusting state during
+  // render on a changed input is React's recommended pattern over a setState-in-effect.
+  const [prevPoints, setPrevPoints] = useState(points);
+  if (points !== prevPoints) {
+    setPrevPoints(points);
+    setHover(null);
+  }
 
   const { w, h } = size;
   const padT = 8;
@@ -277,9 +282,16 @@ export function TrendChart() {
   const [drawn, setDrawn] = useState<Range | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Flip to loading the moment the range changes, during render rather than via setState-in-effect
+  // (React's recommended pattern); the fetch effect below clears it once the new series resolves.
+  const [prevRange, setPrevRange] = useState(range);
+  if (range !== prevRange) {
+    setPrevRange(range);
+    setLoading(true);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     fetch(`/api/series?range=${range}`)
       .then((r) => r.json())
       .then((res: { source?: string; points?: Point[] }) => {
