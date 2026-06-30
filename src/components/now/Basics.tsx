@@ -1,7 +1,5 @@
 /**
- * "Stock movement basics" — three explainer cards (static educational copy), followed by the folded-in
- * "The long view" sub-block (LongView) showing NOW's split-adjusted price since IPO. The closing
- * "zoom out far enough…" paragraph leads straight into that long-run chart.
+ * "Stock movement basics" — three explainer cards (static educational copy) on what moves the stock.
  */
 import {
   TargetIcon,
@@ -11,7 +9,6 @@ import {
   WavesIcon,
   SparklesIcon,
 } from "./icons";
-import { LongView } from "./LongView";
 
 export function Basics() {
   return (
@@ -62,7 +59,6 @@ export function Basics() {
             </div>
           </div>
         </div>
-        <LongView />
       </div>
     </section>
   );
