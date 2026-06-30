@@ -156,7 +156,19 @@ function fmtStamp(t: number, range: Range): string {
  * own box via ResizeObserver so geometry is in real pixels (axis text isn't aspect-distorted), and
  * hover maps the cursor's x to the nearest data point, showing its price and timestamp.
  */
-function TrendPlot({ points, range, baseline }: { points: Point[]; range: Range; baseline?: number | null }) {
+function TrendPlot({
+  points,
+  range,
+  baseline,
+  baselineUp,
+}: {
+  points: Point[];
+  range: Range;
+  baseline?: number | null;
+  // Direction of the current price vs. the baseline (prev close / 12am price): true = up, false = down.
+  // Colors the dashed reference line green/red. null leaves it neutral (non-1D ranges).
+  baselineUp?: boolean | null;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [hover, setHover] = useState<number | null>(null);
@@ -217,8 +229,22 @@ function TrendPlot({ points, range, baseline }: { points: Point[]; range: Range;
           <line x1={0} x2={w} y1={padT + plotH} y2={padT + plotH} stroke="var(--hero-ink)" strokeOpacity={0.16} />
           {baseline != null && (
             <>
-              <line x1={0} x2={w} y1={y(baseline)} y2={y(baseline)} stroke="var(--hero-ink)" strokeOpacity={0.34} strokeDasharray="4 3" />
-              <text x={w - 2} y={y(baseline) - 4} textAnchor="end" fontSize={9} fill="var(--hero-ink-soft)">
+              <line
+                x1={0}
+                x2={w}
+                y1={y(baseline)}
+                y2={y(baseline)}
+                stroke={baselineUp == null ? "var(--hero-ink)" : baselineUp ? "var(--pos)" : "var(--neg)"}
+                strokeOpacity={baselineUp == null ? 0.34 : 0.75}
+                strokeDasharray="4 3"
+              />
+              <text
+                x={w - 2}
+                y={y(baseline) - 4}
+                textAnchor="end"
+                fontSize={9}
+                fill={baselineUp == null ? "var(--hero-ink-soft)" : baselineUp ? "var(--pos)" : "var(--neg)"}
+              >
                 prev close {usd2(baseline)}
               </text>
             </>
@@ -294,6 +320,8 @@ export function TrendChart() {
   // Previous close = current price − today's change. Used as the 1D baseline (the standard "today"
   // reference) and drawn as a dashed line on the 1D chart.
   const prevClose = data?.change != null ? data.price - data.change : null;
+  // Up if the current price is above yesterday's close (the 12am reference); drives the dashed line's color.
+  const baselineUp = data?.change != null ? data.change >= 0 : null;
 
   const hasLine = points != null && points.length > 1 && drawn != null;
 
@@ -317,7 +345,12 @@ export function TrendChart() {
     <div className="trend">
       <div className={`trend-plot${loading ? " is-loading" : ""}`}>
         {hasLine ? (
-          <TrendPlot points={points!} range={drawn!} baseline={drawn === "1D" ? prevClose : null} />
+          <TrendPlot
+            points={points!}
+            range={drawn!}
+            baseline={drawn === "1D" ? prevClose : null}
+            baselineUp={drawn === "1D" ? baselineUp : null}
+          />
         ) : (
           <AnimatedSparkline />
         )}

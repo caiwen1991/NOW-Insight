@@ -107,6 +107,14 @@ Key changes that SUPERSEDE the Phase 1 notes below:
   own start-of-window as the baseline. While switching ranges the previous line stays on screen (the
   ambient animation only shows on first load / when history is unavailable). NOTE: Finnhub's free tier does NOT include historical candles (403), which
   is why a second provider was added just for this series.
+  - **1D dashed baseline is color-coded (intentional exception to the neutral-verdict rule).** On the
+    1D range only, the dashed "prev close" reference line + its label are drawn **green (`--pos`) when
+    the current price is up vs. the previous close, red (`--neg`) when down** (`baselineUp =
+    data.change >= 0`, passed into `TrendPlot`). The previous close equals the price at 12am (market
+    is closed overnight), so this is "the 12am benchmark, colored by today's direction." The MAIN
+    price line stays brand-green on every range; only the 1D benchmark line/label take red/green, and
+    other ranges keep the neutral baseline. This is a deliberate, scoped deviation from the otherwise
+    no-red/green up-down coloring rule.
 
 The Phase-1 notes below are retained for historical context; where they conflict with the above, the
 above wins.
